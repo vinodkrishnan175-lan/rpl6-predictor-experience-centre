@@ -571,4 +571,5 @@ with tabs[4]:
         st.write(r["question"])
         if show_answers:
             st.write(f"**Answer:** {r['correct_option']}")
+
         st.divider()
