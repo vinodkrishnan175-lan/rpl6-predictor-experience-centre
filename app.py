@@ -805,60 +805,60 @@ with tabs[3]:
     st.line_chart(pivot)
 
 # =============================
-# Answer Key (7x6 matrix, always show answers)
+# Answer Key
 # =============================
 with tabs[4]:
     st.header("📜 Answer Key")
 
-# Small CSS for the cards
-st.markdown("""
-<style>
-.ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.ak-card{
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-  min-height: 120px;
-}
-.ak-drop{ font-weight:800; font-size:15px; margin-bottom:6px; color: #f5c542; }
-.ak-q{ font-size:13px; opacity:0.95; line-height:1.3; margin-bottom:8px; }
-.ak-a{ font-weight:800; font-size:14px; color:#fff; background: rgba(245,197,66,0.06); padding:6px 8px; border-radius:8px; display:inline-block;}
-.ak-scrap{ color:#ff7b7b; font-weight:700; }
-</style>
-""", unsafe_allow_html=True)
+    # Small CSS for the cards
+    st.markdown("""
+    <style>
+    .ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .ak-card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      min-height: 120px;
+    }
+    .ak-drop{ font-weight:800; font-size:15px; margin-bottom:6px; color: #f5c542; }
+    .ak-q{ font-size:13px; opacity:0.95; line-height:1.3; margin-bottom:8px; }
+    .ak-a{ font-weight:800; font-size:14px; color:#fff; background: rgba(245,197,66,0.06); padding:6px 8px; border-radius:8px; display:inline-block;}
+    .ak-scrap{ color:#ff7b7b; font-weight:700; }
+    </style>
+    """, unsafe_allow_html=True)
 
-dm = drop_master.sort_values("drop").copy()
-items = dm.to_dict(orient="records")
+    dm = drop_master.sort_values("drop").copy()
+    items = dm.to_dict(orient="records")
 
-st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
-for it in items:
-    d = int(it["drop"])
-    status = it["status"]
-    q = it["question"]
-    ans = it["correct_option"]
+    st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
 
-    tag_html = ''
-    if status == "scrapped":
-        tag_html = '<div class="ak-scrap">🗑️ SCRAPPED</div>'
-    elif status == "calculated":
-        tag_html = '<div style="opacity:0.85; font-size:12px;">🧮 Calculated</div>'
+    for it in items:
+        d = int(it["drop"])
+        status = it["status"]
+        q = it["question"]
+        ans = it["correct_option"]
 
-    card_html = f"""
-      <div class="ak-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div class="ak-drop">Drop {d}</div>
-          {tag_html}
-        </div>
-        <div class="ak-q">{q}</div>
-        <div class="ak-a">Answer: {ans}</div>
-      </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
+        tag_html = ''
+        if status == "scrapped":
+            tag_html = '<div class="ak-scrap">🗑️ SCRAPPED</div>'
+        elif status == "calculated":
+            tag_html = '<div style="opacity:0.85; font-size:12px;">🧮 Calculated</div>'
 
-st.markdown('</div>', unsafe_allow_html=True)
+        card_html = f"""
+          <div class="ak-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="ak-drop">Drop {d}</div>
+              {tag_html}
+            </div>
+            <div class="ak-q">{q}</div>
+            <div class="ak-a">Answer: {ans}</div>
+          </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
 
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 
