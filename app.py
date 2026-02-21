@@ -3,7 +3,47 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-st.set_page_config(page_title="RPL 6 Predictor Dashboard", layout="wide")
+st.set_page_config(page_title="RPL 6 Predictor Experience Centre", layout="wide")
+
+st.markdown("""
+<style>
+/* Broadcast vibe: bold, clean, high-contrast */
+.block-container { padding-top: 2.2rem; padding-bottom: 2rem; }
+html, body, [class*="css"]  { -webkit-font-smoothing: antialiased; }
+
+/* Headings */
+h1, h2, h3 { letter-spacing: -0.02em; }
+h1 { margin-bottom: 0.6rem; font-weight: 800; }
+h2 { margin-top: 1.2rem; font-weight: 800; }
+h3 { font-weight: 700; }
+
+/* Metric tiles */
+[data-testid="stMetric"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.10);
+  padding: 14px 14px 10px 14px;
+  border-radius: 18px;
+}
+
+/* Dataframes look like TV panels */
+[data-testid="stDataFrame"] {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* Tabs */
+button[data-baseweb="tab"] {
+  font-weight: 700;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Reduce dead space between sections */
+hr { margin: 1.2rem 0; opacity: 0.25; }
+</style>
+""", unsafe_allow_html=True)
 
 DATA_DIR = Path("data")
 DROP_MASTER_PATH = DATA_DIR / "Drop Master with final correct options.xlsx"
@@ -254,13 +294,17 @@ with tabs[0]:
     st.divider()
 
     # both PP correct / wrong with hover help
-    a, b = st.columns(2)
-    with a:
-        st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
-        st.help(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
-    with b:
-        st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
-        st.help(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+a, b = st.columns(2)
+
+with a:
+    st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
+    with st.popover("View names"):
+        st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+
+with b:
+    st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
+    with st.popover("View names"):
+        st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     st.divider()
 
@@ -554,3 +598,4 @@ with tabs[4]:
 
                 st.caption(q)
                 st.write(f"✅ **{ans}**")
+
