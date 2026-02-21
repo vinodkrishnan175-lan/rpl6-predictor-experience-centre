@@ -293,18 +293,17 @@ with tabs[0]:
 
     st.divider()
 
-    # both PP correct / wrong with hover help
-a, b = st.columns(2)
+    # both PP correct / wrong (two tiles)
+    a, b = st.columns(2)
+    with a:
+        st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
+        with st.popover("View names"):
+            st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
 
-with a:
-    st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
-    with st.popover("View names"):
-        st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
-
-with b:
-    st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
-    with st.popover("View names"):
-        st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+    with b:
+        st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
+        with st.popover("View names"):
+            st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     st.divider()
 
@@ -331,7 +330,13 @@ with b:
     hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
     hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
     st.dataframe(
-        hd_view.rename(columns={"drop": "Drop", "question": "Question", "accuracy_pct": "% Correct", "attempted": "Attempted", "correct": "Correct"}),
+        hd_view.rename(columns={
+            "drop": "Drop",
+            "question": "Question",
+            "accuracy_pct": "% Correct",
+            "attempted": "Attempted",
+            "correct": "Correct"
+        }),
         use_container_width=True,
         hide_index=True
     )
@@ -340,17 +345,17 @@ with b:
     for _, r in hardest_df.iterrows():
         d = int(r["drop"])
         subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
-        pp_used_names = sorted(merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"].unique().tolist())
+        pp_used_names = sorted(
+            merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+            .unique().tolist()
+        )
 
         names = sorted(subset["player_name"].unique().tolist())
         st.markdown(f"**Drop {d}** — {r['question']}")
         st.caption(f"Correct by {len(names)} players ({safe_pct(float(r['accuracy_pct']))})")
         if pp_used_names:
             st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
-        if names:
-            st.write(", ".join(names))
-        else:
-            st.write("No one got this right.")
+        st.write(", ".join(names) if names else "No one got this right.")
         st.write("")
 
     st.divider()
@@ -362,7 +367,13 @@ with b:
     ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
     ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
     st.dataframe(
-        ez_view.rename(columns={"drop": "Drop", "question": "Question", "accuracy_pct": "% Correct", "attempted": "Attempted", "correct": "Correct"}),
+        ez_view.rename(columns={
+            "drop": "Drop",
+            "question": "Question",
+            "accuracy_pct": "% Correct",
+            "attempted": "Attempted",
+            "correct": "Correct"
+        }),
         use_container_width=True,
         hide_index=True
     )
@@ -371,7 +382,10 @@ with b:
     for _, r in easiest_df.iterrows():
         d = int(r["drop"])
         subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
-        pp_used_names = sorted(merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"].unique().tolist())
+        pp_used_names = sorted(
+            merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+            .unique().tolist()
+        )
         names = sorted(subset["player_name"].unique().tolist())
 
         st.markdown(f"**Drop {d}** — {r['question']}")
@@ -392,10 +406,7 @@ with b:
             st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0")
             st.write(f"✅ Correct option: **{r['correct_option']}**")
             st.write("")
-
-# =============================
-# Drop Explorer
-# =============================
+          
 with tabs[1]:
     st.subheader("Drop Explorer")
 
@@ -598,4 +609,5 @@ with tabs[4]:
 
                 st.caption(q)
                 st.write(f"✅ **{ans}**")
+
 
