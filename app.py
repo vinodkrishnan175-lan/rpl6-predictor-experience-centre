@@ -520,23 +520,6 @@ with tabs[0]:
 
     st.divider()
 
-    # Hardest drops
-    st.subheader("Hardest Drops (Questions only)")
-    st.caption("Hardest = lowest % correct among attempted responses.")
-
-    hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
-    hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
-    st.dataframe(
-        hd_view.rename(columns={
-            "drop": "Drop",
-            "question": "Question",
-            "accuracy_pct": "% Correct",
-            "attempted": "Attempted",
-            "correct": "Correct"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
     # -------------------------
     # Hardest drops
     # -------------------------
@@ -875,6 +858,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
