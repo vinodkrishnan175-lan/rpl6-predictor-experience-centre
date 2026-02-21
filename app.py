@@ -5,6 +5,28 @@ from pathlib import Path
 
 st.set_page_config(page_title="RPL 6 Predictor Experience Centre", layout="wide")
 
+# --- Broadcast hero header (gold accent) ---
+st.markdown("""
+<div style="
+  background: radial-gradient(circle at 10% 10%, rgba(245,197,66,0.18), rgba(0,0,0,0) 40%),
+              linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid rgba(245,197,66,0.06);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div style="font-size:34px;font-weight:900;color:#f5c542;line-height:1;">
+      🏆 RPL 6 Predictor Experience Centre
+    </div>
+    <div style="opacity:0.92;font-size:14px;margin-left:8px;">
+      Season review • Drop-by-drop analytics • Leaderboard race • Answer archive
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+# --- end hero ---
+
 st.markdown("""
 <style>
 /* Broadcast vibe: bold, clean, high-contrast */
@@ -220,6 +242,32 @@ def leaderboard_upto(merged: pd.DataFrame, upto_drop: int) -> pd.DataFrame:
     # stable sorting
     lb = lb.sort_values(["rank", "player_name"], ascending=[True, True]).reset_index(drop=True)
     return lb
+
+def leaderboard_with_movement(merged: pd.DataFrame, upto_drop: int) -> pd.DataFrame:
+    # leaderboard now
+    now = leaderboard_upto(merged, upto_drop).copy()
+
+    # if first drop, nothing to compare to
+    if upto_drop <= 1:
+        now["Move"] = "—"
+        return now
+
+    # leaderboard previous drop
+    prev = leaderboard_upto(merged, upto_drop - 1)[["player_name", "rank"]].rename(columns={"rank": "prev_rank"})
+
+    # join prev rank to current
+    out = now.merge(prev, on="player_name", how="left")
+
+    # movement = prev_rank - current_rank (positive means moved UP)
+    out["delta"] = out["prev_rank"] - out["rank"]
+
+    def fmt(d):
+        if pd.isna(d) or d == 0:
+            return "—"
+        return f"▲{int(d)}" if d > 0 else f"▼{abs(int(d))}"
+
+    out["Move"] = out["delta"].apply(fmt)
+    return out
 
 
 def top_full_leaderboard_view(lb: pd.DataFrame, attendance: pd.DataFrame) -> pd.DataFrame:
@@ -461,8 +509,9 @@ with tabs[1]:
     st.divider()
 
     st.markdown("#### Leaderboard up to this drop (Full)")
-    lb = leaderboard_upto(merged, selected_drop)
+    lb = leaderboard_with_movement(merged, selected_drop)
     lb_view = top_full_leaderboard_view(lb, attendance_df)
+    lb_view.insert(1, "Move", lb["Move"].values)
     st.dataframe(lb_view, use_container_width=True, hide_index=True)
 
     st.divider()
@@ -578,36 +627,52 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Answer Key")
 
-    dm = drop_master.sort_values("drop").copy()
-    items = dm.to_dict(orient="records")
+# Small CSS for the cards
+st.markdown("""
+<style>
+.ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.ak-card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  min-height: 120px;
+}
+.ak-drop{ font-weight:800; font-size:15px; margin-bottom:6px; color: #f5c542; }
+.ak-q{ font-size:13px; opacity:0.95; line-height:1.3; margin-bottom:8px; }
+.ak-a{ font-weight:800; font-size:14px; color:#fff; background: rgba(245,197,66,0.06); padding:6px 8px; border-radius:8px; display:inline-block;}
+.ak-scrap{ color:#ff7b7b; font-weight:700; }
+</style>
+""", unsafe_allow_html=True)
 
-    # 7 rows x 6 cols = 42 cells (we have 38)
-    rows = 7
-    cols = 6
-    idx = 0
+dm = drop_master.sort_values("drop").copy()
+items = dm.to_dict(orient="records")
 
-    for r in range(rows):
-        col_objs = st.columns(cols)
-        for c in range(cols):
-            with col_objs[c]:
-                if idx >= len(items):
-                    st.write("")
-                    continue
+st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
+for it in items:
+    d = int(it["drop"])
+    status = it["status"]
+    q = it["question"]
+    ans = it["correct_option"]
 
-                it = items[idx]
-                idx += 1
+    tag_html = ''
+    if status == "scrapped":
+        tag_html = '<div class="ak-scrap">🗑️ SCRAPPED</div>'
+    elif status == "calculated":
+        tag_html = '<div style="opacity:0.85; font-size:12px;">🧮 Calculated</div>'
 
-                d = int(it["drop"])
-                status = it["status"]
-                q = it["question"]
-                ans = it["correct_option"]
+    card_html = f"""
+      <div class="ak-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="ak-drop">Drop {d}</div>
+          {tag_html}
+        </div>
+        <div class="ak-q">{q}</div>
+        <div class="ak-a">Answer: {ans}</div>
+      </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
 
-                if status == "scrapped":
-                    st.markdown(f"**Drop {d}**  \n🗑️ **SCRAPPED**")
-                else:
-                    st.markdown(f"**Drop {d}**")
-
-                st.caption(q)
-                st.write(f"✅ **{ans}**")
-
+st.markdown('</div>', unsafe_allow_html=True)
 
