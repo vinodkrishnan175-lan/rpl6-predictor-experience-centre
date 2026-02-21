@@ -403,8 +403,26 @@ with tabs[0]:
         use_container_width=True,
         hide_index=True
     )
+    # -------------------------
+    # Hardest drops
+    # -------------------------
+    st.subheader("Hardest Drops (Questions only)")
+    st.caption("Hardest = lowest % correct among attempted responses.")
 
-        st.markdown("#### Players who got the hardest drops right (PP used called out)")
+    hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+    hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
+
+    st.dataframe(
+        hd_view.rename(columns={
+            "drop": "Drop",
+            "question": "Question",
+            "accuracy_pct": "% Correct",
+            "attempted": "Attempted",
+            "correct": "Correct"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
 
     for _, r in hardest_df.iterrows():
         d = int(r["drop"])
@@ -436,15 +454,18 @@ with tabs[0]:
         st.write(", ".join(names) if names else "No one got this right.")
 
         st.markdown("</div>", unsafe_allow_html=True)
-    
+
     st.divider()
 
+    # -------------------------
     # Easiest drops
+    # -------------------------
     st.subheader("Easiest Drops (Questions only)")
     st.caption("Easiest = highest % correct among attempted responses.")
 
     ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
     ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
+
     st.dataframe(
         ez_view.rename(columns={
             "drop": "Drop",
@@ -456,8 +477,6 @@ with tabs[0]:
         use_container_width=True,
         hide_index=True
     )
-
-       st.markdown("#### Players who got the easiest drops right (PP used called out)")
 
     for _, r in easiest_df.iterrows():
         d = int(r["drop"])
@@ -489,8 +508,9 @@ with tabs[0]:
         st.write(", ".join(names) if names else "No responses.")
 
         st.markdown("</div>", unsafe_allow_html=True)
-    st.divider()
 
+    st.divider()
+        
     st.subheader("Unsolved Drops (0 correct)")
     if len(unsolved_df) == 0:
         st.write("None — every question had at least one correct answer.")
@@ -721,6 +741,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
