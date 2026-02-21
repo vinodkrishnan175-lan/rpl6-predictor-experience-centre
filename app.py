@@ -3,35 +3,23 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-# -----------------------------
-# Config
-# -----------------------------
 st.set_page_config(page_title="RPL 6 Predictor Dashboard", layout="wide")
 
 DATA_DIR = Path("data")
 DROP_MASTER_PATH = DATA_DIR / "Drop Master with final correct options.xlsx"
 PREDICTOR_MASTER_PATH = DATA_DIR / "RPL 6 Predictor Answer Master.xlsx"
-
-PREDICTOR_SHEET = "Scoring master"  # as per your file
+PREDICTOR_SHEET = "Scoring master"
 
 # -----------------------------
-# Data Loading + Parsing
+# Data Loading (cache keyed by file mtime)
 # -----------------------------
 @st.cache_data
 def load_drop_master(path: Path, file_mtime: float) -> pd.DataFrame:
-    """
-    Reads the 'Drop Master with final correct options.xlsx' and returns:
-      drop (int), question (str), correct_option (str), status (valid/scrapped/calculated)
-    """
     df = pd.read_excel(path, sheet_name=0)
 
-    # The first row contains column names: Drop #, Predictor Question, Correct Option
-    header = df.iloc[0].tolist()
-    # Expected positions: [nan, 'Drop #', 'Predictor Question', 'Correct Option']
     clean = df.iloc[1:].copy()
     clean.columns = ["_", "drop", "question", "correct_option"]
     clean = clean.drop(columns=["_"])
-
     clean["drop"] = clean["drop"].astype(int)
     clean["question"] = clean["question"].astype(str).str.strip()
     clean["correct_option"] = clean["correct_option"].astype(str).str.strip()
@@ -50,20 +38,11 @@ def load_drop_master(path: Path, file_mtime: float) -> pd.DataFrame:
 
 @st.cache_data
 def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
-    """
-    Reads the 'RPL 6 Predictor Answer Master.xlsx' (Scoring master) which is in a
-    wide 2-col-per-drop format, and converts it into a long table:
-
-    columns:
-      player_name, drop, response, points, attempted, power_play
-    """
     raw = pd.read_excel(path, sheet_name=PREDICTOR_SHEET, header=None)
 
-    # Player rows are 50 players: rows 2..51 (0-indexed)
-    players_block = raw.iloc[2:52].copy()
-
-    # Row 0 has 'Drop 1', 'Drop 2' ... in every response column
+    players_block = raw.iloc[2:52].copy()  # rows 3..52 => 50 players
     row0 = raw.iloc[0]
+
     drop_response_cols = [
         i for i, v in enumerate(row0)
         if isinstance(v, str) and v.strip().lower().startswith("drop")
@@ -75,7 +54,6 @@ def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
     for _, row in players_block.iterrows():
         player_name = str(row[1]).strip()
 
-        # Power play drops are in columns 2 and 3
         pp_set = set()
         for pp in [row[2], row[3]]:
             if pd.isna(pp):
@@ -85,19 +63,19 @@ def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
             except Exception:
                 pass
 
-        # For each drop, response is in col, score in col+1
         for drop_num, resp_col in enumerate(drop_response_cols, start=1):
             resp = row[resp_col]
             score = row[resp_col + 1]
 
-            attempted = not (pd.isna(resp) or (isinstance(resp, str) and resp.strip() == ""))
+            resp_clean = "" if pd.isna(resp) else str(resp).strip()
+            attempted = resp_clean != ""
             points = 0.0 if pd.isna(score) else float(score)
 
             records.append({
                 "player_name": player_name,
                 "drop": int(drop_num),
-                "response": None if not attempted else resp,
-                "points": float(points),     # already 0/1/3 per your scoring
+                "response": resp_clean,             # always string (prevents Arrow issues)
+                "points": float(points),            # uses your score column (0/1/3)
                 "attempted": int(attempted),
                 "power_play": int(drop_num in pp_set),
             })
@@ -109,10 +87,6 @@ def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
 
 @st.cache_data
 def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
-    """
-    Precompute helpful tables used across the app.
-    """
-    # Merge in question + correct option + status
     merged = predictor_long.merge(
         drop_master[["drop", "question", "correct_option", "status"]],
         on="drop",
@@ -120,12 +94,9 @@ def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
     )
 
     scrapped_drops = set(drop_master.loc[drop_master["status"] == "scrapped", "drop"].tolist())
-    valid_drops = drop_master.loc[drop_master["status"] == "valid", "drop"].tolist()
-    calculated_drops = drop_master.loc[drop_master["status"] == "calculated", "drop"].tolist()
-
     scorable_attendance_drops = [d for d in drop_master["drop"].tolist() if d not in scrapped_drops]
 
-    # Active players: anyone with at least 1 attempted in scorable drops
+    # Active = attempted at least once in scorable drops
     attempted_scorable = merged[merged["drop"].isin(scorable_attendance_drops)]
     active_players = (
         attempted_scorable.groupby("player_name")["attempted"].sum()
@@ -142,43 +113,50 @@ def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
     attendance["attendance_den"] = len(scorable_attendance_drops)
     attendance["attendance_pct"] = attendance["attempted_count"] / attendance["attendance_den"]
 
-    # 100% attendance list
-    full_attendance = attendance.loc[attendance["attempted_count"] == attendance["attendance_den"], "player_name"].tolist()
+    full_attendance = attendance.loc[
+        attendance["attempted_count"] == attendance["attendance_den"],
+        "player_name"
+    ].tolist()
 
-    # Drop-level stats (exclude scrapped for correctness/difficulty)
+    # Drop stats
     drop_stats = []
     for d in drop_master["drop"].tolist():
         subset = merged[merged["drop"] == d]
-        attempted = subset["attempted"].sum()
-        correct = subset["is_correct"].sum()
-        pp_used = subset["power_play"].sum()
-        pp_correct = subset.loc[subset["power_play"] == 1, "is_correct"].sum()
+        attempted = int(subset["attempted"].sum())
+        correct = int(subset["is_correct"].sum())
+        pp_used = int(subset["power_play"].sum())
+        pp_correct = int(subset.loc[subset["power_play"] == 1, "is_correct"].sum())
 
         drop_stats.append({
             "drop": d,
             "question": drop_master.loc[drop_master["drop"] == d, "question"].iloc[0],
             "correct_option": drop_master.loc[drop_master["drop"] == d, "correct_option"].iloc[0],
             "status": drop_master.loc[drop_master["drop"] == d, "status"].iloc[0],
-            "attempted": int(attempted),
-            "correct": int(correct),
-            "accuracy_pct": (float(correct) / float(attempted) * 100.0) if attempted else 0.0,
-            "pp_used": int(pp_used),
-            "pp_correct": int(pp_correct),
-            "pp_success_pct": (float(pp_correct) / float(pp_used) * 100.0) if pp_used else 0.0,
+            "attempted": attempted,
+            "correct": correct,
+            "accuracy_pct": (correct / attempted * 100.0) if attempted else 0.0,
+            "pp_used": pp_used,
+            "pp_correct": pp_correct,
         })
 
     drop_stats_df = pd.DataFrame(drop_stats).sort_values("drop")
 
-    # Difficulty only among VALID drops
     valid_stats = drop_stats_df[drop_stats_df["status"] == "valid"].copy()
-    # Define difficulty: lower accuracy = harder
-    valid_stats["difficulty_score"] = 1 - (valid_stats["accuracy_pct"] / 100.0)
-    hardest_drops = valid_stats.sort_values(["accuracy_pct", "attempted"], ascending=[True, False]).head(5)
 
-    # Drops where nobody got it right (VALID only)
-    unsolved_drops = valid_stats[(valid_stats["attempted"] > 0) & (valid_stats["correct"] == 0)].copy()
+    hardest = valid_stats.sort_values(["accuracy_pct", "attempted"], ascending=[True, False]).head(5)
+    easiest = valid_stats.sort_values(["accuracy_pct", "attempted"], ascending=[False, False]).head(5)
 
-    return merged, drop_stats_df, hardest_drops, unsolved_drops, full_attendance, active_set, scorable_attendance_drops
+    unsolved = valid_stats[(valid_stats["attempted"] > 0) & (valid_stats["correct"] == 0)].copy()
+
+    return merged, drop_stats_df, hardest, easiest, unsolved, full_attendance, attendance, active_set, scorable_attendance_drops
+
+
+def safe_pct(x: float) -> str:
+    return f"{x:.1f}%"
+
+
+def drop_label(drop_row: pd.Series) -> str:
+    return f"Drop {int(drop_row['drop'])} — {drop_row['question']}"
 
 
 # -----------------------------
@@ -186,91 +164,66 @@ def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
 # -----------------------------
 def leaderboard_upto(merged: pd.DataFrame, upto_drop: int) -> pd.DataFrame:
     df = merged[merged["drop"] <= upto_drop].copy()
+
     lb = (
         df.groupby("player_name", as_index=False)
         .agg(points=("points", "sum"),
              correct=("is_correct", "sum"),
+             attempted=("attempted", "sum"),
              pp_used=("power_play", "sum"),
-             attempted=("attempted", "sum"))
+             pp_correct=("power_play", lambda s: int(((df.loc[s.index, "power_play"] == 1) & (df.loc[s.index, "is_correct"] == 1)).sum())))
     )
-    lb = lb.sort_values(["points", "correct"], ascending=False).reset_index(drop=True)
 
-    # Rank with ties allowed: method='min'
-    lb["rank"] = lb["points"].rank(method="min", ascending=False).astype(int)
+    # Dense rank (1,2,2,3...) based on points
+    lb["rank"] = lb["points"].rank(method="dense", ascending=False).astype(int)
 
-    # within same points, you may also want correctness ordering for display stability:
-    lb = lb.sort_values(["points", "correct", "player_name"], ascending=[False, False, True]).reset_index(drop=True)
+    # stable sorting
+    lb = lb.sort_values(["rank", "player_name"], ascending=[True, True]).reset_index(drop=True)
     return lb
 
 
-def add_rank_delta(merged: pd.DataFrame, upto_drop: int) -> pd.DataFrame:
-    now = leaderboard_upto(merged, upto_drop)
-    if upto_drop <= 1:
-        now["delta"] = "—"
-        return now
+def top_full_leaderboard_view(lb: pd.DataFrame, attendance: pd.DataFrame) -> pd.DataFrame:
+    out = lb.merge(attendance[["player_name", "attendance_pct"]], on="player_name", how="left")
+    out["attendance_pct"] = out["attendance_pct"].fillna(0.0) * 100.0
 
-    prev = leaderboard_upto(merged, upto_drop - 1)[["player_name", "rank"]].rename(columns={"rank": "rank_prev"})
-    out = now.merge(prev, on="player_name", how="left")
-    out["change"] = out["rank_prev"] - out["rank"]
-
-    def fmt(x):
-        if pd.isna(x) or x == 0:
-            return "—"
-        return f"▲{int(x)}" if x > 0 else f"▼{abs(int(x))}"
-
-    out["delta"] = out["change"].apply(fmt)
+    # show exactly requested columns: Rank, Name, Score, #PP correct, Attendance%
+    out = out[["rank", "player_name", "points", "pp_correct", "attendance_pct"]].copy()
+    out = out.rename(columns={
+        "rank": "Rank",
+        "player_name": "Name",
+        "points": "Score",
+        "pp_correct": "#PP correct",
+        "attendance_pct": "Attendance%"
+    })
+    out["Attendance%"] = out["Attendance%"].map(safe_pct)
     return out
-
-
-def top_n_with_ties(lb: pd.DataFrame, n: int = 5) -> pd.DataFrame:
-    """
-    Return top N ranks, including everyone tied at the cutoff rank.
-    """
-    if lb.empty:
-        return lb
-    lb_sorted = lb.sort_values(["rank", "player_name"], ascending=[True, True]).copy()
-    cutoff_rank = lb_sorted[lb_sorted["rank"] <= n]["rank"].max() if any(lb_sorted["rank"] <= n) else lb_sorted["rank"].min()
-    return lb_sorted[lb_sorted["rank"] <= cutoff_rank].copy()
-
-
-# -----------------------------
-# UI Helpers
-# -----------------------------
-def drop_label(drop_row: pd.Series) -> str:
-    # Dropdown label: "Drop X — Question"
-    return f"Drop {int(drop_row['drop'])} — {drop_row['question']}"
-
-
-def safe_pct(x: float) -> str:
-    return f"{x:.1f}%"
 
 
 # -----------------------------
 # Load everything
 # -----------------------------
 if not DROP_MASTER_PATH.exists() or not PREDICTOR_MASTER_PATH.exists():
-    st.error(
-        "Missing required data files.\n\n"
-        "Please make sure these exist in the repo:\n"
-        f"- {DROP_MASTER_PATH}\n"
-        f"- {PREDICTOR_MASTER_PATH}\n"
-    )
+    st.error("Missing required data files in /data folder.")
     st.stop()
 
-drop_master = load_drop_master(
-    DROP_MASTER_PATH,
-    DROP_MASTER_PATH.stat().st_mtime
-)
-
-predictor_long = load_predictor_long(
-    PREDICTOR_MASTER_PATH,
-    PREDICTOR_MASTER_PATH.stat().st_mtime
-)
-
-merged, drop_stats_df, hardest_drops_df, unsolved_drops_df, full_attendance_list, active_set, scorable_attendance_drops = build_models(drop_master, predictor_long)
+drop_master = load_drop_master(DROP_MASTER_PATH, DROP_MASTER_PATH.stat().st_mtime)
+predictor_long = load_predictor_long(PREDICTOR_MASTER_PATH, PREDICTOR_MASTER_PATH.stat().st_mtime)
+merged, drop_stats_df, hardest_df, easiest_df, unsolved_df, full_attendance_list, attendance_df, active_set, scorable_attendance_drops = build_models(drop_master, predictor_long)
 
 max_drop = int(drop_master["drop"].max())
-final_lb = add_rank_delta(merged, max_drop)
+final_lb_raw = leaderboard_upto(merged, max_drop)
+final_lb = top_full_leaderboard_view(final_lb_raw, attendance_df)
+
+# PP both correct / both wrong
+pp_summary = (
+    merged.groupby("player_name", as_index=False)
+    .agg(pp_used=("power_play", "sum"),
+         pp_correct=("power_play", lambda s: int(((merged.loc[s.index, "power_play"] == 1) & (merged.loc[s.index, "is_correct"] == 1)).sum())))
+)
+pp_summary["pp_wrong"] = pp_summary["pp_used"] - pp_summary["pp_correct"]
+
+both_pp_correct_names = sorted(pp_summary[(pp_summary["pp_used"] == 2) & (pp_summary["pp_correct"] == 2)]["player_name"].tolist())
+both_pp_wrong_names = sorted(pp_summary[(pp_summary["pp_used"] == 2) & (pp_summary["pp_wrong"] == 2)]["player_name"].tolist())
 
 # -----------------------------
 # App Layout
@@ -285,52 +238,37 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 with tabs[0]:
     st.subheader("Season Summary")
 
-    total_participants = merged["player_name"].nunique()  # should be 50
+    total_participants = merged["player_name"].nunique()
     active_count = len(active_set)
     total_predictions = int(merged["attempted"].sum())
     total_pp_used = int(merged["power_play"].sum())
-
-    # Overall accuracy on valid drops (exclude scrapped + calculated)
-    valid_mask = merged["status"].eq("valid")
-    valid_attempted = int(merged.loc[valid_mask, "attempted"].sum())
-    valid_correct = int(merged.loc[valid_mask, "is_correct"].sum())
-    overall_valid_acc = (valid_correct / valid_attempted * 100.0) if valid_attempted else 0.0
+    total_drops = int(drop_master["drop"].nunique())  # should be 38
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Participants", total_participants)
     c2.metric("Active players", active_count)
     c3.metric("Total predictions", total_predictions)
     c4.metric("Total Power Plays used", total_pp_used)
-    c5.metric("Overall accuracy (valid drops)", safe_pct(overall_valid_acc))
+    c5.metric("Total drops", total_drops)
 
     st.divider()
 
-    st.subheader("Top 5 (+ ties)")
-    top5 = top_n_with_ties(final_lb, n=5)
-    st.dataframe(
-        top5[["rank", "delta", "player_name", "points", "correct", "pp_used", "attempted"]]
-        .rename(columns={
-            "rank": "Rank", "delta": "Δ", "player_name": "Player",
-            "points": "Points", "correct": "Correct", "pp_used": "PP Used", "attempted": "Attempted"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.subheader("Final Leaderboard (Full)")
-    st.dataframe(
-        final_lb[["rank", "delta", "player_name", "points", "correct", "pp_used", "attempted"]]
-        .rename(columns={
-            "rank": "Rank", "delta": "Δ", "player_name": "Player",
-            "points": "Points", "correct": "Correct", "pp_used": "PP Used", "attempted": "Attempted"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
+    # both PP correct / wrong with hover help
+    a, b = st.columns(2)
+    with a:
+        st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
+        st.help(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+    with b:
+        st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
+        st.help(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     st.divider()
 
-    # 1) 100% Attendance
+    st.subheader("Full Leaderboard")
+    st.dataframe(final_lb, use_container_width=True, hide_index=True)
+
+    st.divider()
+
     st.subheader("100% Attendance")
     st.caption(f"Attendance calculated across {len(scorable_attendance_drops)} drops (excluding scrapped drops).")
 
@@ -342,27 +280,29 @@ with tabs[0]:
 
     st.divider()
 
-    # 2) Hardest drops + who got them right
-    st.subheader("Hardest Drops (Valid questions only)")
+    # Hardest drops
+    st.subheader("Hardest Drops (Questions only)")
     st.caption("Hardest = lowest % correct among attempted responses.")
 
-    # Display hardest drops table
-    hd_view = hardest_drops_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
-    hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(lambda x: safe_pct(x))
+    hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+    hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
     st.dataframe(
         hd_view.rename(columns={"drop": "Drop", "question": "Question", "accuracy_pct": "% Correct", "attempted": "Attempted", "correct": "Correct"}),
         use_container_width=True,
         hide_index=True
     )
 
-    # Who got hardest drops right
-    st.markdown("#### Players who got the hardest drops right")
-    for _, r in hardest_drops_df.iterrows():
+    st.markdown("#### Players who got the hardest drops right (PP used called out)")
+    for _, r in hardest_df.iterrows():
         d = int(r["drop"])
         subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+        pp_used_names = sorted(merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"].unique().tolist())
+
         names = sorted(subset["player_name"].unique().tolist())
         st.markdown(f"**Drop {d}** — {r['question']}")
-        st.caption(f"Correct by {len(names)} players ({safe_pct(r['accuracy_pct'])})")
+        st.caption(f"Correct by {len(names)} players ({safe_pct(float(r['accuracy_pct']))})")
+        if pp_used_names:
+            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
         if names:
             st.write(", ".join(names))
         else:
@@ -371,17 +311,42 @@ with tabs[0]:
 
     st.divider()
 
-    # 3) Drops nobody got right
+    # Easiest drops
+    st.subheader("Easiest Drops (Questions only)")
+    st.caption("Easiest = highest % correct among attempted responses.")
+
+    ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+    ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
+    st.dataframe(
+        ez_view.rename(columns={"drop": "Drop", "question": "Question", "accuracy_pct": "% Correct", "attempted": "Attempted", "correct": "Correct"}),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("#### Players who got the easiest drops right (PP used called out)")
+    for _, r in easiest_df.iterrows():
+        d = int(r["drop"])
+        subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+        pp_used_names = sorted(merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"].unique().tolist())
+        names = sorted(subset["player_name"].unique().tolist())
+
+        st.markdown(f"**Drop {d}** — {r['question']}")
+        st.caption(f"Correct by {len(names)} players ({safe_pct(float(r['accuracy_pct']))})")
+        if pp_used_names:
+            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+        st.write(", ".join(names) if names else "No responses.")
+        st.write("")
+
+    st.divider()
+
     st.subheader("Unsolved Drops (0 correct)")
-    if len(unsolved_drops_df) == 0:
-        st.write("None — every valid drop had at least one correct answer.")
+    if len(unsolved_df) == 0:
+        st.write("None — every question had at least one correct answer.")
     else:
-        show_answers = st.toggle("Show correct options for unsolved drops", value=True)
-        for _, r in unsolved_drops_df.iterrows():
+        for _, r in unsolved_df.iterrows():
             st.markdown(f"**Drop {int(r['drop'])}** — {r['question']}")
-            st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0 • Status: {r['status']}")
-            if show_answers:
-                st.write(f"✅ Correct option: **{r['correct_option']}**")
+            st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0")
+            st.write(f"✅ Correct option: **{r['correct_option']}**")
             st.write("")
 
 # =============================
@@ -390,9 +355,8 @@ with tabs[0]:
 with tabs[1]:
     st.subheader("Drop Explorer")
 
-    drop_options = drop_master.copy()
-    labels = drop_options.apply(drop_label, axis=1).tolist()
-    label_to_drop = {labels[i]: int(drop_options.iloc[i]["drop"]) for i in range(len(labels))}
+    labels = drop_master.apply(drop_label, axis=1).tolist()
+    label_to_drop = {labels[i]: int(drop_master.iloc[i]["drop"]) for i in range(len(labels))}
 
     selected_label = st.selectbox("Select a question", labels, index=0)
     selected_drop = label_to_drop[selected_label]
@@ -402,79 +366,77 @@ with tabs[1]:
 
     st.markdown(f"### Drop {selected_drop}")
     st.write(drow["question"])
+    st.write(f"✅ Correct option: **{drow['correct_option']}**")
+    if status == "scrapped":
+        st.caption("Status: SCRAPPED (Drop 12)")
 
-    # Correct option reveal toggle
-    reveal = st.toggle("Show correct option", value=True)
-    if reveal:
-        st.write(f"✅ Correct option: **{drow['correct_option']}**")
-    st.caption(f"Status: **{status.upper()}**")
-
-    # Drop stats
     ds = drop_stats_df.loc[drop_stats_df["drop"] == selected_drop].iloc[0]
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Attempted", int(ds["attempted"]))
     c2.metric("Correct", int(ds["correct"]))
     c3.metric("Accuracy", safe_pct(float(ds["accuracy_pct"])))
     c4.metric("PP used", int(ds["pp_used"]))
-    c5.metric("PP success", safe_pct(float(ds["pp_success_pct"])) if int(ds["pp_used"]) > 0 else "—")
 
     st.divider()
 
-    # Response distribution (raw)
     st.markdown("#### Response distribution")
     resp_subset = merged[merged["drop"] == selected_drop].copy()
+
     dist = (
         resp_subset[resp_subset["attempted"] == 1]
-        .groupby("response")
-        .size()
-        .reset_index(name="count")
-        .sort_values("count", ascending=False)
+        .groupby("response")["player_name"]
+        .apply(lambda s: sorted(set(s.tolist())))
+        .reset_index(name="names")
     )
+    dist["Count"] = dist["names"].apply(len)
+    dist["Players"] = dist["names"].apply(lambda arr: ", ".join(arr))
+    dist = dist.sort_values("Count", ascending=False)
+    dist["%"] = (dist["Count"] / dist["Count"].sum() * 100.0) if dist["Count"].sum() else 0.0
+    dist["%"] = dist["%"].map(safe_pct)
+
     if dist.empty:
         st.write("No responses recorded for this drop.")
     else:
-        dist["pct"] = dist["count"] / dist["count"].sum() * 100.0
         st.dataframe(
-            dist.rename(columns={"response": "Response", "count": "Count", "pct": "%"}).assign(**{"%": dist["pct"].map(safe_pct)}),
+            dist.rename(columns={"response": "Response"})[["Response", "Count", "%", "Players"]],
             use_container_width=True,
             hide_index=True
         )
 
     st.divider()
 
-    st.markdown("#### Leaderboard up to this drop (Top 5 + ties)")
-    lb = add_rank_delta(merged, selected_drop)
-    st.dataframe(
-        top_n_with_ties(lb, n=5)[["rank", "delta", "player_name", "points", "correct", "pp_used", "attempted"]]
-        .rename(columns={"rank": "Rank", "delta": "Δ", "player_name": "Player", "points": "Points", "correct": "Correct", "pp_used": "PP Used", "attempted": "Attempted"}),
-        use_container_width=True,
-        hide_index=True
-    )
+    st.markdown("#### Leaderboard up to this drop (Full)")
+    lb = leaderboard_upto(merged, selected_drop)
+    lb_view = top_full_leaderboard_view(lb, attendance_df)
+    st.dataframe(lb_view, use_container_width=True, hide_index=True)
 
-    with st.expander("Show full leaderboard up to this drop"):
-        st.dataframe(
-            lb[["rank", "delta", "player_name", "points", "correct", "pp_used", "attempted"]]
-            .rename(columns={"rank": "Rank", "delta": "Δ", "player_name": "Player", "points": "Points", "correct": "Correct", "pp_used": "PP Used", "attempted": "Attempted"}),
-            use_container_width=True,
-            hide_index=True
-        )
+    st.divider()
 
-    with st.expander("Who got it right / wrong (this drop)"):
-        view = resp_subset[["player_name", "response", "attempted", "power_play", "is_correct", "points"]].copy()
-        view["Result"] = np.where(view["attempted"] == 0, "— Not attempted",
-                                 np.where(view["is_correct"] == 1, "✅ Correct", "❌ Wrong"))
-        view = view.sort_values(["is_correct", "power_play", "points", "player_name"], ascending=[False, False, False, True])
-        st.dataframe(
-            view.rename(columns={
-                "player_name": "Player",
-                "response": "Response",
-                "attempted": "Attempted?",
-                "power_play": "Power Play",
-                "points": "Points Earned"
-            }),
-            use_container_width=True,
-            hide_index=True
-        )
+    st.markdown("#### Results breakdown (Correct / Wrong / No Response)")
+    correct_names = []
+    wrong_names = []
+    noresp_names = []
+
+    for _, r in resp_subset.iterrows():
+        nm = r["player_name"]
+        suffix = " (PP)" if r["power_play"] == 1 else ""
+        if r["attempted"] == 0:
+            noresp_names.append(nm + suffix)
+        elif r["is_correct"] == 1:
+            correct_names.append(nm + suffix)
+        else:
+            wrong_names.append(nm + suffix)
+
+    cA, cB, cC = st.columns(3)
+    with cA:
+        st.markdown(f"### ✅ Correct ({len(correct_names)})")
+        st.write("\n".join(sorted(correct_names)) if correct_names else "—")
+    with cB:
+        st.markdown(f"### ❌ Wrong ({len(wrong_names)})")
+        st.write("\n".join(sorted(wrong_names)) if wrong_names else "—")
+    with cC:
+        st.markdown(f"### ⏸️ No response ({len(noresp_names)})")
+        st.write("\n".join(sorted(noresp_names)) if noresp_names else "—")
 
 # =============================
 # Player Explorer
@@ -486,99 +448,109 @@ with tabs[2]:
     player = st.selectbox("Select a player", players)
 
     p = merged[merged["player_name"] == player].sort_values("drop").copy()
-    total_points = float(p["points"].sum())
-    attempted = int(p[p["drop"].isin(scorable_attendance_drops)]["attempted"].sum())
-    den = len(scorable_attendance_drops)
-    attendance_pct = (attempted / den * 100.0) if den else 0.0
 
-    valid_mask = p["status"].eq("valid")
-    valid_attempted = int(p.loc[valid_mask, "attempted"].sum())
-    valid_correct = int(p.loc[valid_mask, "is_correct"].sum())
-    acc = (valid_correct / valid_attempted * 100.0) if valid_attempted else 0.0
+    total_points = int(p["points"].sum())
+    total_correct = int(p["is_correct"].sum())
+
+    # accuracy across all attempted (not just valid wording)
+    attempted = int(p["attempted"].sum())
+    acc = (total_correct / attempted * 100.0) if attempted else 0.0
 
     pp_used = int(p["power_play"].sum())
-    pp_hits = int(p.loc[p["power_play"] == 1, "is_correct"].sum())
+    pp_hits = int(p[(p["power_play"] == 1) & (p["is_correct"] == 1)].shape[0])
     pp_hit_rate = (pp_hits / pp_used * 100.0) if pp_used else 0.0
 
-    # Final rank
-    final_rank_row = final_lb[final_lb["player_name"] == player]
+    final_rank_row = final_lb_raw[final_lb_raw["player_name"] == player]
     final_rank = int(final_rank_row["rank"].iloc[0]) if not final_rank_row.empty else None
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    att_row = attendance_df[attendance_df["player_name"] == player]
+    attendance_pct = float(att_row["attendance_pct"].iloc[0] * 100.0) if not att_row.empty else 0.0
+
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Final Rank", final_rank if final_rank is not None else "—")
-    c2.metric("Total Points", int(total_points))
-    c3.metric("Attendance", safe_pct(attendance_pct))
-    c4.metric("Accuracy (valid drops)", safe_pct(acc))
-    c5.metric("PP Hit Rate", safe_pct(pp_hit_rate) if pp_used else "—")
+    c2.metric("Total Points", total_points)
+    c3.metric("Total Drops Correct", total_correct)
+    c4.metric("Accuracy", safe_pct(acc))
+    c5.metric("Attendance", safe_pct(attendance_pct))
+    c6.metric("PP Hit Rate", safe_pct(pp_hit_rate) if pp_used else "—")
 
     st.divider()
 
     st.markdown("#### Drop-by-drop log")
-    log = p[["drop", "status", "response", "attempted", "power_play", "is_correct", "points"]].copy()
-    log["Attempted"] = np.where(log["attempted"] == 1, "Yes", "No")
-    log["Correct"] = np.where(log["attempted"] == 0, "—",
-                             np.where(log["is_correct"] == 1, "Yes", "No"))
-    log["PP"] = np.where(log["power_play"] == 1, "Yes", "No")
-    log = log.drop(columns=["attempted", "is_correct", "power_play"])
+    log = p[["drop", "question", "response", "attempted", "power_play", "is_correct", "points"]].copy()
 
-    st.dataframe(
-        log.rename(columns={"drop": "Drop", "status": "Status", "response": "Response", "points": "Points"}),
-        use_container_width=True,
-        hide_index=True
-    )
+    # visual ticks
+    log["Attempted"] = np.where(log["attempted"] == 1, "✅", "❌")
+    log["Correct"] = np.where(log["attempted"] == 0, "—", np.where(log["is_correct"] == 1, "✅", "❌"))
+    log["PP"] = np.where(log["power_play"] == 1, "✅", "❌")
+
+    log = log.rename(columns={"drop": "Drop", "question": "Drop text", "response": "Response", "points": "Points"})
+    log = log[["Drop", "Drop text", "Response", "Attempted", "Correct", "PP", "Points"]]
+
+    st.dataframe(log, use_container_width=True, hide_index=True)
 
 # =============================
-# Leaderboard Race
+# Leaderboard Race (Cumulative points over drops)
 # =============================
 with tabs[3]:
-    st.subheader("Leaderboard Race (Rank over time)")
+    st.subheader("Leaderboard Race (Cumulative points over drops)")
+    st.caption("This shows how each player's score accumulated after each drop. Higher is better.")
 
-    # Precompute ranks for each drop
+    top_n = st.slider("Show top N players (by final result)", min_value=5, max_value=20, value=10, step=1)
+    focus_players = final_lb_raw.sort_values(["rank", "player_name"]).head(top_n)["player_name"].tolist()
+
     drops = drop_master["drop"].tolist()
 
-    # Default: top 10 by final points (stable set)
-    top_n = st.slider("Show top N players (by final result)", min_value=5, max_value=20, value=10, step=1)
-    final_sorted = final_lb.sort_values(["rank", "player_name"])
-    focus_players = final_sorted.head(top_n)["player_name"].tolist()
-
-    # Build rank timeline for those players
+    # cumulative points timeline
     timeline = []
     for d in drops:
-        lb_d = leaderboard_upto(merged, d)[["player_name", "rank", "points"]]
-        lb_d = lb_d[lb_d["player_name"].isin(focus_players)].copy()
-        lb_d["drop"] = d
-        timeline.append(lb_d)
+        upto = merged[merged["drop"] <= d]
+        pts = (
+            upto.groupby("player_name", as_index=False)["points"].sum()
+            .rename(columns={"points": "cum_points"})
+        )
+        pts = pts[pts["player_name"].isin(focus_players)].copy()
+        pts["drop"] = d
+        timeline.append(pts)
+
     tl = pd.concat(timeline, ignore_index=True)
-
-    # Pivot to make line chart data
-    pivot = tl.pivot(index="drop", columns="player_name", values="rank").sort_index()
-
-    st.caption("Lower rank number = better. Chart is inverted so #1 appears at the top.")
+    pivot = tl.pivot(index="drop", columns="player_name", values="cum_points").sort_index()
     st.line_chart(pivot)
 
-    # Optional: show points timeline
-    with st.expander("Show points over time (same players)"):
-        pivot_pts = tl.pivot(index="drop", columns="player_name", values="points").sort_index()
-        st.line_chart(pivot_pts)
-
 # =============================
-# Answer Key
+# Answer Key (7x6 matrix, always show answers)
 # =============================
 with tabs[4]:
-    st.subheader("Answer Key (All Drops)")
-    show_answers = st.toggle("Show answers", value=False)
+    st.subheader("Answer Key")
 
-    for _, r in drop_master.sort_values("drop").iterrows():
-        d = int(r["drop"])
-        status = r["status"]
+    dm = drop_master.sort_values("drop").copy()
+    items = dm.to_dict(orient="records")
 
-        # Small status tag
-        tag = "✅ VALID" if status == "valid" else ("🧮 CALCULATED" if status == "calculated" else "🗑️ SCRAPPED")
+    # 7 rows x 6 cols = 42 cells (we have 38)
+    rows = 7
+    cols = 6
+    idx = 0
 
-        st.markdown(f"### Drop {d} — {tag}")
-        st.write(r["question"])
-        if show_answers:
-            st.write(f"**Answer:** {r['correct_option']}")
+    for r in range(rows):
+        col_objs = st.columns(cols)
+        for c in range(cols):
+            with col_objs[c]:
+                if idx >= len(items):
+                    st.write("")
+                    continue
 
-        st.divider()
+                it = items[idx]
+                idx += 1
 
+                d = int(it["drop"])
+                status = it["status"]
+                q = it["question"]
+                ans = it["correct_option"]
+
+                if status == "scrapped":
+                    st.markdown(f"**Drop {d}**  \n🗑️ **SCRAPPED**")
+                else:
+                    st.markdown(f"**Drop {d}**")
+
+                st.caption(q)
+                st.write(f"✅ **{ans}**")
