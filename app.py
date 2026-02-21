@@ -389,59 +389,67 @@ with tabs[0]:
     viz_df["Score"] = pd.to_numeric(viz_df["Score"], errors="coerce").fillna(0)
     viz_df = viz_df.sort_values(["Score", "Name"], ascending=[False, True]).reset_index(drop=True)
 
-    # ===== Podium (Top 5) =====
+        # ===== Awards Night Podium (Top 3 ranks with ties) =====
     st.markdown("""
     <style>
-    .podium-wrap { display: grid; grid-template-columns: repeat(5, minmax(160px, 1fr)); gap: 14px; margin: 6px 0 14px 0; }
+    .podium-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 6px 0 14px 0; }
     .podium-card {
-      border-radius: 18px;
-      padding: 14px 14px 12px 14px;
+      border-radius: 20px;
+      padding: 16px 18px 14px 18px;
       border: 1px solid rgba(255,255,255,0.10);
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-      box-shadow: 0 14px 30px rgba(0,0,0,0.40);
-      min-height: 140px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+      min-height: 160px;
     }
-    .podium-rank { font-weight: 900; font-size: 12px; opacity: 0.95; margin-bottom: 8px; letter-spacing: 0.06em; }
-    .podium-name { font-weight: 900; font-size: 16px; line-height: 1.15; margin-bottom: 10px; }
-    .podium-meta { font-size: 12px; opacity: 0.88; line-height: 1.35; }
-    .podium-score { font-weight: 900; font-size: 22px; margin-top: 10px; }
-    .gold   { border-color: rgba(245,197,66,0.35); background: radial-gradient(circle at 20% 10%, rgba(245,197,66,0.22), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
-    .silver { border-color: rgba(200,200,200,0.30); background: radial-gradient(circle at 20% 10%, rgba(200,200,200,0.16), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
-    .bronze { border-color: rgba(205,127,50,0.35); background: radial-gradient(circle at 20% 10%, rgba(205,127,50,0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
-    .fourth { border-color: rgba(255,255,255,0.10); }
-    .fifth  { border-color: rgba(255,255,255,0.10); }
+    .podium-title { font-weight: 900; font-size: 14px; letter-spacing: 0.06em; margin-bottom: 12px; }
+    .podium-name { font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+    .podium-score { font-weight: 900; font-size: 22px; margin-top: 8px; }
+    .gold   { border-color: rgba(245,197,66,0.40);
+              background: radial-gradient(circle at 20% 10%, rgba(245,197,66,0.28), rgba(0,0,0,0) 55%); }
+    .silver { border-color: rgba(200,200,200,0.35);
+              background: radial-gradient(circle at 20% 10%, rgba(200,200,200,0.20), rgba(0,0,0,0) 55%); }
+    .bronze { border-color: rgba(205,127,50,0.45);
+              background: radial-gradient(circle at 20% 10%, rgba(205,127,50,0.22), rgba(0,0,0,0) 55%); }
     </style>
     """, unsafe_allow_html=True)
 
-    top5 = viz_df.head(5).copy()
+    # Get players by rank
+    podium_df = viz_df.copy()
 
-    labels = [
-        ("🥇 CHAMPION", "gold"),
-        ("🥈 RUNNER-UP", "silver"),
-        ("🥉 3rd PLACE", "bronze"),
-        ("🎖️ 4th", "fourth"),
-        ("🎖️ 5th", "fifth"),
-    ]
+    gold_df = podium_df[podium_df["Rank"] == 1]
+    silver_df = podium_df[podium_df["Rank"] == 2]
+    bronze_df = podium_df[podium_df["Rank"] == 3]
 
     st.markdown('<div class="podium-wrap">', unsafe_allow_html=True)
-    for i in range(5):
-        if i >= len(top5):
-            # if not enough players (unlikely), show empty placeholder
-            st.markdown('<div class="podium-card"></div>', unsafe_allow_html=True)
-            continue
 
-        row = top5.iloc[i]
-        title, cls = labels[i]
-        st.markdown(f"""
-        <div class="podium-card {cls}">
-          <div class="podium-rank">{title}</div>
-          <div class="podium-name">{row["Name"]}</div>
-          <div class="podium-meta">Rank: <b>{row["Rank"]}</b> • PP correct: <b>{row["#PP correct"]}</b></div>
-          <div class="podium-meta">Attendance: <b>{row["Attendance%"]}</b></div>
-          <div class="podium-score">🏏 {int(row["Score"])} pts</div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # GOLD
+    st.markdown('<div class="podium-card gold">', unsafe_allow_html=True)
+    st.markdown('<div class="podium-title">🥇 CHAMPION</div>', unsafe_allow_html=True)
+
+    for _, row in gold_df.iterrows():
+        st.markdown(f'<div class="podium-name">{row["Name"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="podium-score">🏏 {int(row["Score"])} pts</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # SILVER
+    st.markdown('<div class="podium-card silver">', unsafe_allow_html=True)
+    st.markdown('<div class="podium-title">🥈 RUNNERS-UP</div>', unsafe_allow_html=True)
+
+    for _, row in silver_df.iterrows():
+        st.markdown(f'<div class="podium-name">{row["Name"]} — {int(row["Score"])} pts</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # BRONZE
+    st.markdown('<div class="podium-card bronze">', unsafe_allow_html=True)
+    st.markdown('<div class="podium-title">🥉 THIRD PLACE</div>', unsafe_allow_html=True)
+
+    for _, row in bronze_df.iterrows():
+        st.markdown(f'<div class="podium-name">{row["Name"]} — {int(row["Score"])} pts</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -850,6 +858,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
