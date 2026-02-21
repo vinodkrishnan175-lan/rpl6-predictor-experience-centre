@@ -383,25 +383,91 @@ with tabs[0]:
 
     st.subheader("Full Leaderboard")
 
-    # --- Leaderboard visual (broadcast bar chart) ---
-    st.caption("Leaderboard visual (Top N by score).")
+    # --- Awards Night Podium + Polished Leaderboard Chart ---
+    # Prepare numeric score + top order
+    viz_df = final_lb.copy()
+    viz_df["Score"] = pd.to_numeric(viz_df["Score"], errors="coerce").fillna(0)
+    viz_df = viz_df.sort_values(["Score", "Name"], ascending=[False, True]).reset_index(drop=True)
 
-    top_n = st.slider("Show Top N", min_value=10, max_value=25, value=15, step=1)
+    # ===== Podium (Top 5) =====
+    st.markdown("""
+    <style>
+    .podium-wrap { display: grid; grid-template-columns: repeat(5, minmax(160px, 1fr)); gap: 14px; margin: 6px 0 14px 0; }
+    .podium-card {
+      border-radius: 18px;
+      padding: 14px 14px 12px 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      box-shadow: 0 14px 30px rgba(0,0,0,0.40);
+      min-height: 140px;
+    }
+    .podium-rank { font-weight: 900; font-size: 12px; opacity: 0.95; margin-bottom: 8px; letter-spacing: 0.06em; }
+    .podium-name { font-weight: 900; font-size: 16px; line-height: 1.15; margin-bottom: 10px; }
+    .podium-meta { font-size: 12px; opacity: 0.88; line-height: 1.35; }
+    .podium-score { font-weight: 900; font-size: 22px; margin-top: 10px; }
+    .gold   { border-color: rgba(245,197,66,0.35); background: radial-gradient(circle at 20% 10%, rgba(245,197,66,0.22), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
+    .silver { border-color: rgba(200,200,200,0.30); background: radial-gradient(circle at 20% 10%, rgba(200,200,200,0.16), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
+    .bronze { border-color: rgba(205,127,50,0.35); background: radial-gradient(circle at 20% 10%, rgba(205,127,50,0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); }
+    .fourth { border-color: rgba(255,255,255,0.10); }
+    .fifth  { border-color: rgba(255,255,255,0.10); }
+    </style>
+    """, unsafe_allow_html=True)
 
-    chart_df = final_lb.copy()
-    chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
-    chart_df = chart_df.sort_values(["Score", "Name"], ascending=[False, True]).head(top_n)
+    top5 = viz_df.head(5).copy()
+
+    labels = [
+        ("🥇 CHAMPION", "gold"),
+        ("🥈 RUNNER-UP", "silver"),
+        ("🥉 3rd PLACE", "bronze"),
+        ("🎖️ 4th", "fourth"),
+        ("🎖️ 5th", "fifth"),
+    ]
+
+    st.markdown('<div class="podium-wrap">', unsafe_allow_html=True)
+    for i in range(5):
+        if i >= len(top5):
+            # if not enough players (unlikely), show empty placeholder
+            st.markdown('<div class="podium-card"></div>', unsafe_allow_html=True)
+            continue
+
+        row = top5.iloc[i]
+        title, cls = labels[i]
+        st.markdown(f"""
+        <div class="podium-card {cls}">
+          <div class="podium-rank">{title}</div>
+          <div class="podium-name">{row["Name"]}</div>
+          <div class="podium-meta">Rank: <b>{row["Rank"]}</b> • PP correct: <b>{row["#PP correct"]}</b></div>
+          <div class="podium-meta">Attendance: <b>{row["Attendance%"]}</b></div>
+          <div class="podium-score">🏏 {int(row["Score"])} pts</div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    # ===== Polished bar chart =====
+    st.caption("Leaderboard visual (Top N by score). Use the slider to expand the field.")
+
+    top_n = st.slider("Show Top N", min_value=10, max_value=25, value=15, step=1, key="lb_topn")
+
+    chart_df = viz_df.head(top_n).copy()
 
     import altair as alt
-
     bar = (
         alt.Chart(chart_df)
         .mark_bar()
         .encode(
             y=alt.Y("Name:N", sort="-x", title=""),
             x=alt.X("Score:Q", title="Points"),
-            tooltip=["Rank", "Name", "Score", "#PP correct", "Attendance%"]
+            tooltip=[
+                alt.Tooltip("Rank:O", title="Rank"),
+                alt.Tooltip("Name:N", title="Player"),
+                alt.Tooltip("Score:Q", title="Points"),
+                alt.Tooltip("#PP correct:O", title="PP Correct"),
+                alt.Tooltip("Attendance%:N", title="Attendance")
+            ],
         )
+        .properties(height=420)
     )
 
     labels = (
@@ -416,14 +482,14 @@ with tabs[0]:
 
     st.altair_chart(bar + labels, use_container_width=True)
 
-    scores_all = pd.to_numeric(final_lb["Score"], errors="coerce").fillna(0)
+    scores_all = viz_df["Score"]
     st.caption(
-        f"Field: {len(final_lb)} players • "
+        f"Field: {len(viz_df)} players • "
         f"Leader: {scores_all.max():.0f} • "
         f"Median: {scores_all.median():.0f} • "
         f"Lowest: {scores_all.min():.0f}"
     )
-    # --- end chart ---
+    # --- end awards + chart ---
 
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
 
@@ -784,6 +850,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
