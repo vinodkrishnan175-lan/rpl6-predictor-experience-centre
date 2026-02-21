@@ -64,6 +64,26 @@ button[data-baseweb="tab"] {
 
 /* Reduce dead space between sections */
 hr { margin: 1.2rem 0; opacity: 0.25; }
+
+.qa-card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0 16px 0;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+}
+.qa-title{
+  font-weight: 800;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.qa-sub{
+  opacity: 0.85;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -341,32 +361,27 @@ with tabs[0]:
     st.divider()
 
     # both PP correct / wrong (two tiles)
-    a, b = st.columns(2)
-    with a:
-        st.markdown(f"### Players with both PP correct: **{len(both_pp_correct_names)}**")
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+    a, b, c = st.columns(3)
 
-    with b:
-        st.markdown(f"### Players with both PP wrong: **{len(both_pp_wrong_names)}**")
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+with a:
+    st.metric("Both PP correct", len(both_pp_correct_names))
+    with st.popover("View names"):
+        st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+
+with b:
+    st.metric("Both PP wrong", len(both_pp_wrong_names))
+    with st.popover("View names"):
+        st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+
+with c:
+    st.metric("100% attendance", len(full_attendance_list))
+    with st.popover("View names"):
+        st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
 
     st.divider()
 
     st.subheader("Full Leaderboard")
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    st.subheader("100% Attendance")
-    st.caption(f"Attendance calculated across {len(scorable_attendance_drops)} drops (excluding scrapped drops).")
-
-    if full_attendance_list:
-        st.write(f"**{len(full_attendance_list)} players** have 100% attendance:")
-        st.write(", ".join(sorted(full_attendance_list)))
-    else:
-        st.write("No one has 100% attendance (as per recorded attempts).")
 
     st.divider()
 
@@ -398,12 +413,26 @@ with tabs[0]:
         )
 
         names = sorted(subset["player_name"].unique().tolist())
-        st.markdown(f"**Drop {d}** — {r['question']}")
-        st.caption(f"Correct by {len(names)} players ({safe_pct(float(r['accuracy_pct']))})")
-        if pp_used_names:
-            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
-        st.write(", ".join(names) if names else "No one got this right.")
-        st.write("")
+        st.markdown('<div class="qa-card">', unsafe_allow_html=True)
+
+st.markdown(
+    f'<div class="qa-title">Drop {d} — {r["question"]}</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+    unsafe_allow_html=True
+)
+
+if pp_used_names:
+    st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+else:
+    st.write("🧊 No players used Power Play for this question.")
+
+st.write(", ".join(names) if names else "No one got this right.")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -426,22 +455,26 @@ with tabs[0]:
     )
 
     st.markdown("#### Players who got the easiest drops right (PP used called out)")
-    for _, r in easiest_df.iterrows():
-        d = int(r["drop"])
-        subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
-        pp_used_names = sorted(
-            merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
-            .unique().tolist()
-        )
-        names = sorted(subset["player_name"].unique().tolist())
+    st.markdown('<div class="qa-card">', unsafe_allow_html=True)
 
-        st.markdown(f"**Drop {d}** — {r['question']}")
-        st.caption(f"Correct by {len(names)} players ({safe_pct(float(r['accuracy_pct']))})")
-        if pp_used_names:
-            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
-        st.write(", ".join(names) if names else "No responses.")
-        st.write("")
+st.markdown(
+    f'<div class="qa-title">Drop {d} — {r["question"]}</div>',
+    unsafe_allow_html=True
+)
 
+st.markdown(
+    f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+    unsafe_allow_html=True
+)
+
+if pp_used_names:
+    st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+else:
+    st.write("🧊 No players used Power Play for this question.")
+
+st.write(", ".join(names) if names else "No responses.")
+
+st.markdown('</div>', unsafe_allow_html=True)
     st.divider()
 
     st.subheader("Unsolved Drops (0 correct)")
@@ -674,5 +707,6 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
