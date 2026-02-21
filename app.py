@@ -30,7 +30,7 @@ st.markdown("""
 st.markdown("""
 <style>
 /* Broadcast vibe: bold, clean, high-contrast */
-.block-container { padding-top: 2.2rem; padding-bottom: 2rem; }
+.block-container { padding-top: 4.2rem; padding-bottom: 2rem; }
 html, body, [class*="css"]  { -webkit-font-smoothing: antialiased; }
 
 /* Headings */
@@ -316,7 +316,6 @@ both_pp_wrong_names = sorted(pp_summary[(pp_summary["pp_used"] == 2) & (pp_summa
 # -----------------------------
 # App Layout
 # -----------------------------
-st.title("RPL 6 Predictor — Results Dashboard")
 
 tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "📈 Leaderboard Race", "📜 Answer Key"])
 
@@ -324,7 +323,7 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 # Overview
 # =============================
 with tabs[0]:
-    st.subheader("Season Summary")
+    st.header("🏁 Season Overview")
 
     total_participants = merged["player_name"].nunique()
     active_count = len(active_set)
@@ -456,7 +455,7 @@ with tabs[0]:
             st.write("")
           
 with tabs[1]:
-    st.subheader("Drop Explorer")
+    st.header("🎯 Drop Explorer")
 
     labels = drop_master.apply(drop_label, axis=1).tolist()
     label_to_drop = {labels[i]: int(drop_master.iloc[i]["drop"]) for i in range(len(labels))}
@@ -546,7 +545,7 @@ with tabs[1]:
 # Player Explorer
 # =============================
 with tabs[2]:
-    st.subheader("Player Explorer")
+    st.header("👤 Player Explorer")
 
     players = sorted(merged["player_name"].unique().tolist())
     player = st.selectbox("Select a player", players)
@@ -597,8 +596,8 @@ with tabs[2]:
 # Leaderboard Race (Cumulative points over drops)
 # =============================
 with tabs[3]:
-    st.subheader("Leaderboard Race (Cumulative points over drops)")
-    st.caption("This shows how each player's score accumulated after each drop. Higher is better.")
+    st.header("📈 Leaderboard Race")
+    st.caption("This shows how each player's score accumulated after each drop. Movement vs other players can also be tracked drop by drop.")
 
     top_n = st.slider("Show top N players (by final result)", min_value=5, max_value=20, value=10, step=1)
     focus_players = final_lb_raw.sort_values(["rank", "player_name"]).head(top_n)["player_name"].tolist()
@@ -625,7 +624,7 @@ with tabs[3]:
 # Answer Key (7x6 matrix, always show answers)
 # =============================
 with tabs[4]:
-    st.subheader("Answer Key")
+    st.header("📜 Answer Key")
 
 # Small CSS for the cards
 st.markdown("""
@@ -675,4 +674,5 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
