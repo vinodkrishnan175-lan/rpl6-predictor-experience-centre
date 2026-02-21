@@ -411,6 +411,12 @@ with tabs[0]:
         background: radial-gradient(circle at 18% 0%, rgba(245,197,66,0.25), rgba(0,0,0,0) 55%),
                     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
       }
+      .pod.gold{
+       box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
+              0 0 26px rgba(245,197,66,0.18),
+              0 16px 34px rgba(0,0,0,0.45);
+       position: relative;
+       }
       .pod.silver{
         border-color: rgba(200,200,200,0.38);
         background: radial-gradient(circle at 18% 0%, rgba(200,200,200,0.18), rgba(0,0,0,0) 55%),
@@ -421,18 +427,10 @@ with tabs[0]:
         background: radial-gradient(circle at 18% 0%, rgba(205,127,50,0.20), rgba(0,0,0,0) 55%),
                     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
       }
-      .pod-title{
-        font-weight: 900;
-        font-size: 13px;
-        margin-bottom: 8px;
-      }
-      .pod-line{
-        display:flex;
-        justify-content:space-between;
-        font-weight: 800;
-        font-size: 14px;
-        margin: 4px 0;
-      }
+      .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
+      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
+      .pod-pts{ font-weight: 950; }
+
       .pod-pts{
         font-weight: 900;
       }
@@ -877,6 +875,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
