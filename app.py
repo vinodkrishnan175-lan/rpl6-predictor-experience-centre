@@ -382,6 +382,49 @@ with tabs[0]:
     st.divider()
 
     st.subheader("Full Leaderboard")
+  # --- Leaderboard visual (broadcast bar chart) ---
+st.caption("Leaderboard visual (Top N by score).")
+
+top_n = st.slider("Show Top N", min_value=10, max_value=25, value=15, step=1)
+
+chart_df = final_lb.copy()
+# final_lb columns: Rank, Name, Score, #PP correct, Attendance%
+chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
+
+chart_df = chart_df.sort_values(["Score", "Name"], ascending=[False, True]).head(top_n)
+
+import altair as alt
+bar = (
+    alt.Chart(chart_df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("Name:N", sort="-x", title=""),
+        x=alt.X("Score:Q", title="Points"),
+        tooltip=["Rank", "Name", "Score", "#PP correct", "Attendance%"]
+    )
+)
+
+labels = (
+    alt.Chart(chart_df)
+    .mark_text(align="left", dx=6)
+    .encode(
+        y=alt.Y("Name:N", sort="-x"),
+        x=alt.X("Score:Q"),
+        text=alt.Text("Score:Q")
+    )
+)
+
+st.altair_chart(bar + labels, use_container_width=True)
+
+# small broadcast summary line
+scores_all = pd.to_numeric(final_lb["Score"], errors="coerce").fillna(0)
+st.caption(
+    f"Field: {len(final_lb)} players • "
+    f"Leader: {scores_all.max():.0f} • "
+    f"Median: {scores_all.median():.0f} • "
+    f"Lowest: {scores_all.min():.0f}"
+)
+# --- end chart ---
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
 
     st.divider()
@@ -741,6 +784,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
