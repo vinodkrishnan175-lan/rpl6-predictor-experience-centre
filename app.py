@@ -415,7 +415,7 @@ with c:
         names = sorted(subset["player_name"].unique().tolist())
         st.markdown('<div class="qa-card">', unsafe_allow_html=True)
 
-st.markdown(
+      st.markdown(
     f'<div class="qa-title">Drop {d} — {r["question"]}</div>',
     unsafe_allow_html=True
 )
@@ -707,6 +707,7 @@ for it in items:
     st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
