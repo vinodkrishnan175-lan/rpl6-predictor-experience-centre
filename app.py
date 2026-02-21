@@ -18,7 +18,7 @@ PREDICTOR_SHEET = "Scoring master"  # as per your file
 # Data Loading + Parsing
 # -----------------------------
 @st.cache_data
-def load_drop_master(path: Path) -> pd.DataFrame:
+def load_drop_master(path: Path, file_mtime: float) -> pd.DataFrame:
     """
     Reads the 'Drop Master with final correct options.xlsx' and returns:
       drop (int), question (str), correct_option (str), status (valid/scrapped/calculated)
@@ -49,7 +49,7 @@ def load_drop_master(path: Path) -> pd.DataFrame:
 
 
 @st.cache_data
-def load_predictor_long(path: Path) -> pd.DataFrame:
+def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
     """
     Reads the 'RPL 6 Predictor Answer Master.xlsx' (Scoring master) which is in a
     wide 2-col-per-drop format, and converts it into a long table:
@@ -257,8 +257,16 @@ if not DROP_MASTER_PATH.exists() or not PREDICTOR_MASTER_PATH.exists():
     )
     st.stop()
 
-drop_master = load_drop_master(DROP_MASTER_PATH)
-predictor_long = load_predictor_long(PREDICTOR_MASTER_PATH)
+drop_master = load_drop_master(
+    DROP_MASTER_PATH,
+    DROP_MASTER_PATH.stat().st_mtime
+)
+
+predictor_long = load_predictor_long(
+    PREDICTOR_MASTER_PATH,
+    PREDICTOR_MASTER_PATH.stat().st_mtime
+)
+
 merged, drop_stats_df, hardest_drops_df, unsolved_drops_df, full_attendance_list, active_set, scorable_attendance_drops = build_models(drop_master, predictor_long)
 
 max_drop = int(drop_master["drop"].max())
@@ -573,3 +581,4 @@ with tabs[4]:
             st.write(f"**Answer:** {r['correct_option']}")
 
         st.divider()
+
