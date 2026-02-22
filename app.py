@@ -100,11 +100,12 @@ def load_drop_master(path: Path, file_mtime: float) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=0)
 
     clean = df.iloc[1:].copy()
-    clean.columns = ["_", "drop", "question", "correct_option"]
+    clean.columns = ["_", "drop", "question", "correct_option", "actuals"]
     clean = clean.drop(columns=["_"])
     clean["drop"] = clean["drop"].astype(int)
     clean["question"] = clean["question"].astype(str).str.strip()
     clean["correct_option"] = clean["correct_option"].astype(str).str.strip()
+    clean["actuals"] = clean["actuals"].astype(str).str.strip()
 
     def infer_status(x: str) -> str:
         xl = x.strip().lower()
@@ -170,7 +171,7 @@ def load_predictor_long(path: Path, file_mtime: float) -> pd.DataFrame:
 @st.cache_data
 def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
     merged = predictor_long.merge(
-        drop_master[["drop", "question", "correct_option", "status"]],
+        drop_master[["drop", "question", "correct_option", "actuals", "status"]],
         on="drop",
         how="left"
     )
@@ -212,6 +213,7 @@ def build_models(drop_master: pd.DataFrame, predictor_long: pd.DataFrame):
         drop_stats.append({
             "drop": d,
             "question": drop_master.loc[drop_master["drop"] == d, "question"].iloc[0],
+            "actuals": drop_master.loc[drop_master["drop"] == d, "actuals"].iloc[0],
             "correct_option": drop_master.loc[drop_master["drop"] == d, "correct_option"].iloc[0],
             "status": drop_master.loc[drop_master["drop"] == d, "status"].iloc[0],
             "attempted": attempted,
@@ -978,6 +980,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
