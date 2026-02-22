@@ -993,11 +993,8 @@ with tabs[4]:
           </div>
         """
         st.markdown(tile, unsafe_allow_html=True)
-          </div>
-        """
-        st.markdown(tile, unsafe_allow_html=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
