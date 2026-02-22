@@ -930,6 +930,7 @@ with tabs[4]:
       .ak-pair b{ font-weight: 950; }
       .ak-ppgood{ color:#ffd88a; font-weight: 900; }
       .ak-scraplabel{ color:#ffd1d1; font-weight: 950; }
+      .ak-sep{ opacity:0.7; padding: 0 6px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -965,24 +966,39 @@ with tabs[4]:
             <div class="ak-q">{q}</div>
             <div class="ak-ans">Answer: {ans}</div>
 
+        tile = f"""
+          <div class="{tile_class}" title="{q}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div class="ak-drop">Drop {d}</div>
+            </div>
+
+            {scrap_line}
+
+            <div class="ak-q">{q}</div>
+            <div class="ak-ans">Answer: {ans}</div>
+
             <div class="ak-metrics">
               <div class="ak-pair">
-                <span>Responses:</span> <b>{responses}</b>
-                <span style="opacity:0.75;">|</span>
-                <span>Correct:</span> <b>{correct}</b>
+                <span>Responses:</span><b>{responses}</b>
+                <span class="ak-sep">|</span>
+                <span>Correct:</span><b>{correct}</b>
               </div>
 
               <div class="ak-pair">
-                <span>PP used:</span> <b>{pp_used}</b>
-                <span style="opacity:0.75;">|</span>
-                <span class="ak-ppgood">PP success:</span> <b class="ak-ppgood">{pp_success}</b>
+                <span>PP used:</span><b>{pp_used}</b>
+                <span class="ak-sep">|</span>
+                <span class="ak-ppgood">PP success:</span><b class="ak-ppgood">{pp_success}</b>
               </div>
             </div>
           </div>
         """
         st.markdown(tile, unsafe_allow_html=True)
+          </div>
+        """
+        st.markdown(tile, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
