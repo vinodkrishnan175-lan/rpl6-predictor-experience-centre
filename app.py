@@ -851,85 +851,90 @@ with tabs[4]:
     # ----- Compact grid CSS -----
     st.markdown("""
     <style>
-      .ak-grid-5{
+      /* Force 3 columns on desktop */
+      .ak-grid{
         display:grid;
-        grid-template-columns: repeat(5, minmax(180px, 1fr));
-        gap: 12px;
-        margin-top: 10px;
+        grid-template-columns: repeat(3, minmax(260px, 1fr));
+        gap: 14px;
+        margin-top: 12px;
       }
+
+      /* 2 columns on medium screens */
+      @media (max-width: 1100px){
+        .ak-grid{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+      }
+
+      /* 1 column on mobile */
+      @media (max-width: 700px){
+        .ak-grid{ grid-template-columns: 1fr; }
+      }
+
       .ak-tile{
-        border-radius: 14px;
-        padding: 10px 12px;
+        border-radius: 16px;
+        padding: 14px 14px 12px 14px;
         border: 1px solid rgba(255,255,255,0.10);
-        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-        box-shadow: 0 10px 24px rgba(0,0,0,0.35);
-        min-height: 155px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        box-shadow: 0 12px 26px rgba(0,0,0,0.38);
+        min-height: 170px;
       }
-      .ak-top{
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        margin-bottom: 6px;
+
+      /* Scrapped tile – full red */
+      .ak-tile.scrapped{
+        border-color: rgba(255,110,110,0.60);
+        background: linear-gradient(180deg, rgba(255,90,90,0.32), rgba(255,90,90,0.12));
       }
+
       .ak-drop{
-        font-weight: 900;
-        font-size: 14px;
+        font-weight: 950;
+        font-size: 18px;
         color: #f5c542;
         letter-spacing: 0.04em;
       }
-      .ak-badge{
-        font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        opacity: 0.9;
-      }
-      .ak-badge.scrapped{ color:#ff7b7b; border-color: rgba(255,123,123,0.35); }
-      .ak-badge.calculated{ color:#a8d5ff; border-color: rgba(168,213,255,0.28); }
-      .ak-badge.valid{ color:#c9ffd8; border-color: rgba(201,255,216,0.22); }
 
       .ak-q{
-        font-size: 12.5px;
-        opacity: 0.92;
-        line-height: 1.25;
-        margin: 6px 0 8px 0;
+        font-size: 14px;
+        opacity: 0.95;
+        line-height: 1.3;
+        margin: 8px 0 10px 0;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        min-height: 48px;
+        min-height: 54px;
       }
+
       .ak-ans{
         display:inline-block;
         margin: 2px 0 10px 0;
         font-weight: 900;
-        font-size: 13px;
-        padding: 6px 8px;
-        border-radius: 10px;
-        background: rgba(245,197,66,0.08);
-        border: 1px solid rgba(245,197,66,0.18);
+        font-size: 15px;
+        padding: 7px 10px;
+        border-radius: 11px;
+        background: rgba(245,197,66,0.10);
+        border: 1px solid rgba(245,197,66,0.22);
       }
+
       .ak-metrics{
-        display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px 10px;
-        margin-top: 6px;
-        font-size: 12px;
-        opacity: 0.92;
+        display:flex;
+        justify-content:space-between;
+        gap: 12px;
+        margin-top: 8px;
+        font-size: 14px;
+        opacity: 0.95;
       }
-      .ak-metrics b{ font-weight: 900; opacity: 1; }
-      .ak-ppgood{ color:#ffd88a; }
-      @media (max-width: 1100px){
-        .ak-grid-5{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+      .ak-pair{
+        display:flex;
+        gap: 10px;
+        align-items:baseline;
       }
-      @media (max-width: 700px){
-        .ak-grid-5{ grid-template-columns: repeat(1, minmax(180px, 1fr)); }
-      }
+      .ak-pair b{ font-weight: 950; }
+      .ak-ppgood{ color:#ffd88a; font-weight: 900; }
+      .ak-scraplabel{ color:#ffd1d1; font-weight: 950; }
     </style>
     """, unsafe_allow_html=True)
 
     # ----- Render tiles -----
-    st.markdown('<div class="ak-grid-5">', unsafe_allow_html=True)
+    st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
 
     for _, r in ak.iterrows():
         d = int(r["drop"])
@@ -942,33 +947,43 @@ with tabs[4]:
         pp_used = int(r["pp_used"])
         pp_success = int(r["pp_success"])
 
+        # Scrapped styling only for scrapped drops (drop 12)
+        tile_class = "ak-tile scrapped" if status == "scrapped" else "ak-tile"
+
+        scrap_line = ""
         if status == "scrapped":
-            badge = '<span class="ak-badge scrapped">🗑️ Scrapped</span>'
-        elif status == "calculated":
-            badge = '<span class="ak-badge calculated">🧮 Calculated</span>'
-        else:
-            badge = '<span class="ak-badge valid">✅ Valid</span>'
+            scrap_line = '<div class="ak-scraplabel">🗑️ SCRAPPED DROP</div>'
 
         tile = f"""
-          <div class="ak-tile" title="{q}">
-            <div class="ak-top">
+          <div class="{tile_class}" title="{q}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
               <div class="ak-drop">Drop {d}</div>
-              {badge}
             </div>
+
+            {scrap_line}
+
             <div class="ak-q">{q}</div>
             <div class="ak-ans">Answer: {ans}</div>
 
             <div class="ak-metrics">
-              <div>Responses: <b>{responses}</b></div>
-              <div>Correct: <b>{correct}</b></div>
-              <div>PP used: <b>{pp_used}</b></div>
-              <div class="ak-ppgood">PP success: <b>{pp_success}</b></div>
+              <div class="ak-pair">
+                <span>Responses:</span> <b>{responses}</b>
+                <span style="opacity:0.75;">|</span>
+                <span>Correct:</span> <b>{correct}</b>
+              </div>
+
+              <div class="ak-pair">
+                <span>PP used:</span> <b>{pp_used}</b>
+                <span style="opacity:0.75;">|</span>
+                <span class="ak-ppgood">PP success:</span> <b class="ak-ppgood">{pp_success}</b>
+              </div>
             </div>
           </div>
         """
         st.markdown(tile, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
