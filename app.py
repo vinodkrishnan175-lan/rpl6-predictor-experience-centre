@@ -954,34 +954,31 @@ with tabs[4]:
         scrap_line = ""
         if status == "scrapped":
             scrap_line = '<div class="ak-scraplabel">🗑️ SCRAPPED DROP</div>'
-        tile = f"""
-          <div class="{tile_class}" title="{q}">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-              <div class="ak-drop">Drop {d}</div>
-            </div>
-
-            {scrap_line}
-
-            <div class="ak-q">{q}</div>
-            <div class="ak-ans">Answer: {ans}</div>
-
-            <div class="ak-metrics">
-              <div class="ak-pair">
-                <span>Responses:</span><b>{responses}</b>
-                <span class="ak-sep">|</span>
-                <span>Correct:</span><b>{correct}</b>
-              </div>
-
-              <div class="ak-pair">
-                <span>PP used:</span><b>{pp_used}</b>
-                <span class="ak-sep">|</span>
-                <span class="ak-ppgood">PP success:</span><b class="ak-ppgood">{pp_success}</b>
-              </div>
-            </div>
-          </div>
-        """
+                tile = (
+            f'<div class="{tile_class}" title="{q}">'
+            f'  <div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+            f'    <div class="ak-drop">Drop {d}</div>'
+            f'  </div>'
+            f'  {scrap_line}'
+            f'  <div class="ak-q">{q}</div>'
+            f'  <div class="ak-ans">Answer: {ans}</div>'
+            f'  <div class="ak-metrics">'
+            f'    <div class="ak-pair">'
+            f'      <span>Responses:</span><b>{responses}</b>'
+            f'      <span class="ak-sep">|</span>'
+            f'      <span>Correct:</span><b>{correct}</b>'
+            f'    </div>'
+            f'    <div class="ak-pair">'
+            f'      <span>PP used:</span><b>{pp_used}</b>'
+            f'      <span class="ak-sep">|</span>'
+            f'      <span class="ak-ppgood">PP success:</span><b class="ak-ppgood">{pp_success}</b>'
+            f'    </div>'
+            f'  </div>'
+            f'</div>'
+        )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
