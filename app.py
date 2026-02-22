@@ -840,7 +840,7 @@ with tabs[4]:
 
     # Join with drop master (ensures we show ALL drops incl scrapped/calculated)
     ak = (
-        drop_master[["drop", "question", "correct_option", "status"]]
+        drop_master[["drop", "question", "correct_option", "actuals", "status"]]
         .merge(drop_stats, on="drop", how="left")
         .sort_values("drop")
         .copy()
@@ -943,6 +943,7 @@ with tabs[4]:
         d = int(r["drop"])
         q = str(r["question"])
         ans = str(r["correct_option"])
+        actuals = str(r.get("actuals", "")).strip()
         status = str(r["status"]).lower()
 
         responses = int(r["responses"])
@@ -964,6 +965,7 @@ with tabs[4]:
             f'  {scrap_line}'
             f'  <div class="ak-q">{q}</div>'
             f'  <div class="ak-ans">Answer: {ans}</div>'
+            f'  <div class="ak-ans">Actual: {actuals}</div>'
             f'  <div class="ak-metrics">'
             f'    <div class="ak-pair">'
             f'      <span>Responses:</span><b>{responses}</b>'
@@ -980,6 +982,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
