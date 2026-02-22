@@ -954,18 +954,6 @@ with tabs[4]:
         scrap_line = ""
         if status == "scrapped":
             scrap_line = '<div class="ak-scraplabel">🗑️ SCRAPPED DROP</div>'
-
-        tile = f"""
-          <div class="{tile_class}" title="{q}">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-              <div class="ak-drop">Drop {d}</div>
-            </div>
-
-            {scrap_line}
-
-            <div class="ak-q">{q}</div>
-            <div class="ak-ans">Answer: {ans}</div>
-
         tile = f"""
           <div class="{tile_class}" title="{q}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -994,6 +982,7 @@ with tabs[4]:
         """
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
