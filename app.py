@@ -809,56 +809,166 @@ with tabs[3]:
 # =============================
 with tabs[4]:
     st.header("📜 Answer Key")
+    st.caption("All drops + correct options + response stats (attempts, correct, power plays).")
 
-    # Small CSS for the cards
+    # ----- Build per-drop stats from merged -----
+    # merged columns used: drop, attempted, is_correct, power_play, player_name, question
+    # drop_master columns used: drop, question, correct_option, status
+
+    # Aggregate stats per drop (attempted, correct, PP used, PP success)
+    drop_stats = (
+        merged.groupby("drop", as_index=False)
+        .agg(
+            responses=("attempted", "sum"),
+            correct=("is_correct", "sum"),
+            pp_used=("power_play", "sum"),
+            pp_success=("power_play", lambda s: 0),  # placeholder, filled below
+        )
+    )
+
+    # Compute pp_success properly: PP used AND correct
+    pp_success_df = (
+        merged.assign(pp_success_row=((merged["power_play"] == 1) & (merged["is_correct"] == 1)).astype(int))
+        .groupby("drop", as_index=False)
+        .agg(pp_success=("pp_success_row", "sum"))
+    )
+
+    drop_stats = drop_stats.drop(columns=["pp_success"]).merge(pp_success_df, on="drop", how="left")
+    drop_stats["pp_success"] = drop_stats["pp_success"].fillna(0).astype(int)
+
+    # Join with drop master (ensures we show ALL drops incl scrapped/calculated)
+    ak = (
+        drop_master[["drop", "question", "correct_option", "status"]]
+        .merge(drop_stats, on="drop", how="left")
+        .sort_values("drop")
+        .copy()
+    )
+
+    # Fill blanks for drops that have no merged rows (shouldn't happen, but safe)
+    for col in ["responses", "correct", "pp_used", "pp_success"]:
+        ak[col] = ak[col].fillna(0).astype(int)
+
+    # ----- Compact grid CSS -----
     st.markdown("""
     <style>
-    .ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-    .ak-card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      min-height: 120px;
-    }
-    .ak-drop{ font-weight:800; font-size:15px; margin-bottom:6px; color: #f5c542; }
-    .ak-q{ font-size:13px; opacity:0.95; line-height:1.3; margin-bottom:8px; }
-    .ak-a{ font-weight:800; font-size:14px; color:#fff; background: rgba(245,197,66,0.06); padding:6px 8px; border-radius:8px; display:inline-block;}
-    .ak-scrap{ color:#ff7b7b; font-weight:700; }
+      .ak-grid-5{
+        display:grid;
+        grid-template-columns: repeat(5, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 10px;
+      }
+      .ak-tile{
+        border-radius: 14px;
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+        box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+        min-height: 155px;
+      }
+      .ak-top{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom: 6px;
+      }
+      .ak-drop{
+        font-weight: 900;
+        font-size: 14px;
+        color: #f5c542;
+        letter-spacing: 0.04em;
+      }
+      .ak-badge{
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        opacity: 0.9;
+      }
+      .ak-badge.scrapped{ color:#ff7b7b; border-color: rgba(255,123,123,0.35); }
+      .ak-badge.calculated{ color:#a8d5ff; border-color: rgba(168,213,255,0.28); }
+      .ak-badge.valid{ color:#c9ffd8; border-color: rgba(201,255,216,0.22); }
+
+      .ak-q{
+        font-size: 12.5px;
+        opacity: 0.92;
+        line-height: 1.25;
+        margin: 6px 0 8px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 48px;
+      }
+      .ak-ans{
+        display:inline-block;
+        margin: 2px 0 10px 0;
+        font-weight: 900;
+        font-size: 13px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        background: rgba(245,197,66,0.08);
+        border: 1px solid rgba(245,197,66,0.18);
+      }
+      .ak-metrics{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 10px;
+        margin-top: 6px;
+        font-size: 12px;
+        opacity: 0.92;
+      }
+      .ak-metrics b{ font-weight: 900; opacity: 1; }
+      .ak-ppgood{ color:#ffd88a; }
+      @media (max-width: 1100px){
+        .ak-grid-5{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+      }
+      @media (max-width: 700px){
+        .ak-grid-5{ grid-template-columns: repeat(1, minmax(180px, 1fr)); }
+      }
     </style>
     """, unsafe_allow_html=True)
 
-    dm = drop_master.sort_values("drop").copy()
-    items = dm.to_dict(orient="records")
+    # ----- Render tiles -----
+    st.markdown('<div class="ak-grid-5">', unsafe_allow_html=True)
 
-    st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
+    for _, r in ak.iterrows():
+        d = int(r["drop"])
+        q = str(r["question"])
+        ans = str(r["correct_option"])
+        status = str(r["status"]).lower()
 
-    for it in items:
-        d = int(it["drop"])
-        status = it["status"]
-        q = it["question"]
-        ans = it["correct_option"]
+        responses = int(r["responses"])
+        correct = int(r["correct"])
+        pp_used = int(r["pp_used"])
+        pp_success = int(r["pp_success"])
 
-        tag_html = ''
         if status == "scrapped":
-            tag_html = '<div class="ak-scrap">🗑️ SCRAPPED</div>'
+            badge = '<span class="ak-badge scrapped">🗑️ Scrapped</span>'
         elif status == "calculated":
-            tag_html = '<div style="opacity:0.85; font-size:12px;">🧮 Calculated</div>'
+            badge = '<span class="ak-badge calculated">🧮 Calculated</span>'
+        else:
+            badge = '<span class="ak-badge valid">✅ Valid</span>'
 
-        card_html = f"""
-          <div class="ak-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+        tile = f"""
+          <div class="ak-tile" title="{q}">
+            <div class="ak-top">
               <div class="ak-drop">Drop {d}</div>
-              {tag_html}
+              {badge}
             </div>
             <div class="ak-q">{q}</div>
-            <div class="ak-a">Answer: {ans}</div>
+            <div class="ak-ans">Answer: {ans}</div>
+
+            <div class="ak-metrics">
+              <div>Responses: <b>{responses}</b></div>
+              <div>Correct: <b>{correct}</b></div>
+              <div>PP used: <b>{pp_used}</b></div>
+              <div class="ak-ppgood">PP success: <b>{pp_success}</b></div>
+            </div>
           </div>
         """
-        st.markdown(card_html, unsafe_allow_html=True)
+        st.markdown(tile, unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
