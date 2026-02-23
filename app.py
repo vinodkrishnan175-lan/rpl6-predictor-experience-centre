@@ -754,13 +754,23 @@ with tabs[2]:
 
     att_row = attendance_df[attendance_df["player_name"] == player]
     attendance_pct = float(att_row["attendance_pct"].iloc[0] * 100.0) if not att_row.empty else 0.0
-
+    attendance_den = len(scorable_attendance_drops)
+  
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Final Rank", final_rank if final_rank is not None else "—")
     c2.metric("Total Points", total_points)
     c3.metric("Total Drops Correct", total_correct)
-    c4.metric("Accuracy", safe_pct(acc))
-    c5.metric("Attendance", safe_pct(attendance_pct))
+    # Accuracy = correct / attempted
+    c4.metric(
+    "Accuracy (Correct / Attempted)",
+    f"{safe_pct(acc)}"
+    )
+
+    # Attendance = attempted drops / total valid drops
+    c5.metric(
+    "Attendance",
+    f"{attempted}/{attendance_den} ({safe_pct(attendance_pct)})"
+    )
     c6.metric("PP Hit Rate", safe_pct(pp_hit_rate) if pp_used else "—")
 
     st.divider()
@@ -982,6 +992,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
