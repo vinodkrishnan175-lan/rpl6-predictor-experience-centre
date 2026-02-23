@@ -738,32 +738,52 @@ with tabs[2]:
 
     p = merged[merged["player_name"] == player].sort_values("drop").copy()
 
-    # -----------------------------
-    # Core counts (DO NOT use points for accuracy)
-    # -----------------------------
-    total_points = int(pd.to_numeric(p["points"], errors="coerce").fillna(0).sum())
+    # Basic totals
+    total_points = int(p["points"].sum())
+    total_correct = int(p["is_correct"].sum())
 
-    attempted = int(p["attempted"].sum())              # drops attempted by this player
-    total_correct = int(p["is_correct"].sum())         # drops correct by this player
-
+    # -----------------------------
     # Accuracy = Correct / Attempted
-    acc_pct = (total_correct / attempted * 100.0) if attempted else 0.0
+    # IMPORTANT: exclude Drop 12 from accuracy so it doesn't distort anything
+    # -----------------------------
+    p_acc = p[p["drop"] != 12].copy()
+    attempted_for_accuracy = int(p_acc["attempted"].sum())
+    correct_for_accuracy = int(p_acc["is_correct"].sum())
+    acc = (correct_for_accuracy / attempted_for_accuracy * 100.0) if attempted_for_accuracy else 0.0
 
-    # Attendance denominator = total scorable drops (excluding scrapped)
-    attendance_den = len(scorable_attendance_drops)
-    attendance_pct = (attempted / attendance_den * 100.0) if attendance_den else 0.0
-
-    # Power play stats
+    # -----------------------------
+    # Power Play hit rate
+    # -----------------------------
     pp_used = int(p["power_play"].sum())
-    pp_hits = int(((p["power_play"] == 1) & (p["is_correct"] == 1)).sum())
+    pp_hits = int(p[(p["power_play"] == 1) & (p["is_correct"] == 1)].shape[0])
     pp_hit_rate = (pp_hits / pp_used * 100.0) if pp_used else 0.0
 
-    # Final rank
+    # -----------------------------
+    # Final Rank
+    # -----------------------------
     final_rank_row = final_lb_raw[final_lb_raw["player_name"] == player]
     final_rank = int(final_rank_row["rank"].iloc[0]) if not final_rank_row.empty else None
 
     # -----------------------------
-    # Tiles (2 rows so text fits)
+    # Attendance = xx/38 (treat Drop 12 as attended for everyone)
+    # -----------------------------
+    attendance_den = int(drop_master["drop"].nunique())  # 38
+
+    attempted_all = int(p["attempted"].sum())  # attempts across all 38 drops
+
+    # If Drop 12 exists for this player but was not attempted, add 1 anyway
+    if (p["drop"] == 12).any():
+        attempted_drop12 = int(p.loc[p["drop"] == 12, "attempted"].sum())
+        if attempted_drop12 == 0:
+            attempted_all += 1
+    else:
+        # Safety fallback (shouldn't happen): still count Drop 12 as attended
+        attempted_all += 1
+
+    attendance_pct = (attempted_all / attendance_den * 100.0) if attendance_den else 0.0
+
+    # -----------------------------
+    # Tiles (2 rows, 3 columns) — prevents text truncation
     # -----------------------------
     r1c1, r1c2, r1c3 = st.columns(3)
     r2c1, r2c2, r2c3 = st.columns(3)
@@ -772,12 +792,15 @@ with tabs[2]:
     r1c2.metric("Total Points", total_points)
     r1c3.metric("Total Drops Correct", total_correct)
 
-    r2c1.metric("Accuracy (Correct/Attempted)", f"{acc_pct:.1f}%")
-    r2c2.metric("Attendance", f"{attempted}/{attendance_den} ({attendance_pct:.0f}%)")
+    r2c1.metric("Accuracy (Correct / Attempted)", f"{acc:.1f}%")
+    r2c2.metric("Attendance", f"{attempted_all}/{attendance_den} ({attendance_pct:.0f}%)")
     r2c3.metric("PP Hit Rate", f"{pp_hit_rate:.1f}%" if pp_used else "—")
 
     st.divider()
 
+    # -----------------------------
+    # Drop-by-drop log
+    # -----------------------------
     st.markdown("#### Drop-by-drop log")
     log = p[["drop", "question", "response", "attempted", "power_play", "is_correct", "points"]].copy()
 
@@ -995,6 +1018,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
