@@ -738,40 +738,43 @@ with tabs[2]:
 
     p = merged[merged["player_name"] == player].sort_values("drop").copy()
 
-    total_points = int(p["points"].sum())
-    total_correct = int(p["is_correct"].sum())
+    # -----------------------------
+    # Core counts (DO NOT use points for accuracy)
+    # -----------------------------
+    total_points = int(pd.to_numeric(p["points"], errors="coerce").fillna(0).sum())
 
-    # accuracy across all attempted (not just valid wording)
-    attempted = int(p["attempted"].sum())
-    acc = (total_correct / attempted * 100.0) if attempted else 0.0
+    attempted = int(p["attempted"].sum())              # drops attempted by this player
+    total_correct = int(p["is_correct"].sum())         # drops correct by this player
 
+    # Accuracy = Correct / Attempted
+    acc_pct = (total_correct / attempted * 100.0) if attempted else 0.0
+
+    # Attendance denominator = total scorable drops (excluding scrapped)
+    attendance_den = len(scorable_attendance_drops)
+    attendance_pct = (attempted / attendance_den * 100.0) if attendance_den else 0.0
+
+    # Power play stats
     pp_used = int(p["power_play"].sum())
-    pp_hits = int(p[(p["power_play"] == 1) & (p["is_correct"] == 1)].shape[0])
+    pp_hits = int(((p["power_play"] == 1) & (p["is_correct"] == 1)).sum())
     pp_hit_rate = (pp_hits / pp_used * 100.0) if pp_used else 0.0
 
+    # Final rank
     final_rank_row = final_lb_raw[final_lb_raw["player_name"] == player]
     final_rank = int(final_rank_row["rank"].iloc[0]) if not final_rank_row.empty else None
 
-    att_row = attendance_df[attendance_df["player_name"] == player]
-    attendance_pct = float(att_row["attendance_pct"].iloc[0] * 100.0) if not att_row.empty else 0.0
-    attendance_den = len(scorable_attendance_drops)
-  
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("Final Rank", final_rank if final_rank is not None else "—")
-    c2.metric("Total Points", total_points)
-    c3.metric("Total Drops Correct", total_correct)
-    # Accuracy = correct / attempted
-    c4.metric(
-    "Accuracy (Correct / Attempted)",
-    f"{safe_pct(acc)}"
-    )
+    # -----------------------------
+    # Tiles (2 rows so text fits)
+    # -----------------------------
+    r1c1, r1c2, r1c3 = st.columns(3)
+    r2c1, r2c2, r2c3 = st.columns(3)
 
-    # Attendance = attempted drops / total valid drops
-    c5.metric(
-    "Attendance",
-    f"{attempted}/{attendance_den} ({safe_pct(attendance_pct)})"
-    )
-    c6.metric("PP Hit Rate", safe_pct(pp_hit_rate) if pp_used else "—")
+    r1c1.metric("Final Rank", final_rank if final_rank is not None else "—")
+    r1c2.metric("Total Points", total_points)
+    r1c3.metric("Total Drops Correct", total_correct)
+
+    r2c1.metric("Accuracy (Correct/Attempted)", f"{acc_pct:.1f}%")
+    r2c2.metric("Attendance", f"{attempted}/{attendance_den} ({attendance_pct:.0f}%)")
+    r2c3.metric("PP Hit Rate", f"{pp_hit_rate:.1f}%" if pp_used else "—")
 
     st.divider()
 
@@ -787,7 +790,7 @@ with tabs[2]:
     log = log[["Drop", "Drop text", "Response", "Attempted", "Correct", "PP", "Points"]]
 
     st.dataframe(log, use_container_width=True, hide_index=True)
-
+  
 # =============================
 # Leaderboard Race (Cumulative points over drops)
 # =============================
@@ -992,6 +995,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
