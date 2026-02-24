@@ -1019,7 +1019,6 @@ with tabs[3]:
             time.sleep(delay)
             st.session_state.race_drop += 1
             st.rerun()
-          
 # =============================
 # Answer Key
 # =============================
@@ -1209,6 +1208,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
