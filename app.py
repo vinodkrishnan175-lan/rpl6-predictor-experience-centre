@@ -816,8 +816,9 @@ with tabs[2]:
 # Leaderboard Race (Replay Mode)
 # =============================
 with tabs[3]:
+
     st.header("📈 Leaderboard Race — Replay Mode")
-    st.caption("Press Play to replay how the leaderboard changed after every drop.")
+    st.caption("Press Play to auto-replay the leaderboard evolution drop by drop.")
 
     import altair as alt
     import time
@@ -835,9 +836,9 @@ with tabs[3]:
     # -----------------------------
     # Controls
     # -----------------------------
-    c1, c2, c3 = st.columns([2, 1, 1])
+    col1, col2, col3 = st.columns([2, 1, 1])
 
-    with c1:
+    with col1:
         top_n = st.slider(
             "Show Top N players",
             min_value=5,
@@ -847,7 +848,7 @@ with tabs[3]:
             key="race_topn"
         )
 
-    with c2:
+    with col2:
         if st.session_state.race_playing:
             if st.button("⏸ Pause"):
                 st.session_state.race_playing = False
@@ -855,12 +856,12 @@ with tabs[3]:
             if st.button("▶️ Play"):
                 st.session_state.race_playing = True
 
-    with c3:
+    with col3:
         speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
-        speed_map = {"Slow": 0.8, "Normal": 0.4, "Fast": 0.2}
-        delay = speed_map[speed]
+        delay_map = {"Slow": 0.8, "Normal": 0.4, "Fast": 0.2}
+        delay = delay_map[speed]
 
-    # This slider is the source of truth (critical)
+    # THIS slider controls the same state variable
     st.slider(
         "Replay drop",
         min_value=1,
@@ -872,91 +873,89 @@ with tabs[3]:
     current_drop = int(st.session_state.race_drop)
 
     # -----------------------------
-    # Leaderboard as of drop
+    # Build leaderboard up to current drop
     # -----------------------------
-    def leaderboard_asof(d):
-        tmp = merged[merged["drop"] <= d].copy()
-        scores = (
-            tmp.groupby("player_name", as_index=False)["points"].sum()
-            .rename(columns={"points": "Score"})
-        )
-        scores["Rank"] = scores["Score"].rank(method="dense", ascending=False).astype(int)
-        scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
-        return scores
-
-    now_lb = leaderboard_asof(current_drop)
-    prev_lb = leaderboard_asof(max(current_drop - 1, 1))
-
-    now_lb = now_lb.merge(
-        prev_lb[["player_name", "Rank"]].rename(columns={"Rank": "PrevRank"}),
-        on="player_name",
-        how="left"
+    tmp = merged[merged["drop"] <= current_drop].copy()
+    scores = (
+        tmp.groupby("player_name", as_index=False)["points"].sum()
+        .rename(columns={"points": "Score"})
     )
 
-    now_lb["PrevRank"] = now_lb["PrevRank"].fillna(now_lb["Rank"])
-    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]
+    scores["Rank"] = scores["Score"].rank(method="dense", ascending=False).astype(int)
+    scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
 
-    def arrow(m):
-        if m > 0:
-            return f"⬆️ {int(m)}"
-        if m < 0:
-            return f"⬇️ {abs(int(m))}"
+    view = scores.head(top_n).copy()
+
+    # -----------------------------
+    # Add movement arrows
+    # -----------------------------
+    prev_tmp = merged[merged["drop"] <= max(current_drop - 1, 1)].copy()
+    prev_scores = (
+        prev_tmp.groupby("player_name", as_index=False)["points"].sum()
+        .rename(columns={"points": "PrevScore"})
+    )
+    prev_scores["PrevRank"] = prev_scores["PrevScore"].rank(method="dense", ascending=False).astype(int)
+
+    view = view.merge(prev_scores[["player_name", "PrevRank"]], on="player_name", how="left")
+    view["PrevRank"] = view["PrevRank"].fillna(view["Rank"])
+    view["Move"] = view["PrevRank"] - view["Rank"]
+
+    def arrow(x):
+        if x > 0:
+            return f"⬆️ {int(x)}"
+        if x < 0:
+            return f"⬇️ {abs(int(x))}"
         return "—"
 
-    now_lb["Δ"] = now_lb["Move"].apply(arrow)
-
-    view = now_lb.sort_values(["Rank", "player_name"]).head(top_n).copy()
+    view["Δ"] = view["Move"].apply(arrow)
 
     # -----------------------------
     # Chart
     # -----------------------------
     st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
-    chart_df = view.copy()
-    chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
-    chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").astype(int)
-
-    # Build right-side label
-    chart_df["right_label"] = (
-        chart_df["player_name"]
+    view["right_label"] = (
+        view["player_name"]
         + " — "
-        + chart_df["Score"].astype(int).astype(str)
+        + view["Score"].astype(int).astype(str)
         + " pts ("
-        + chart_df["Δ"]
+        + view["Δ"]
         + ")"
     )
 
     y_sort = alt.SortField(field="Rank", order="ascending")
 
-    max_score = float(chart_df["Score"].max()) if len(chart_df) else 1
-    x_domain_max = max_score * 1.3
+    max_score = float(view["Score"].max()) if len(view) else 1
+    x_max = max_score * 1.3
 
     bars = (
-        alt.Chart(chart_df)
+        alt.Chart(view)
         .mark_bar(cornerRadiusEnd=4)
         .encode(
             y=alt.Y("player_name:N", sort=y_sort, title=""),
-            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, x_domain_max]), title="Points"),
+            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, x_max]), title="Points"),
             color=alt.Color("player_name:N", legend=None),
         )
     )
 
     labels = (
-        alt.Chart(chart_df)
-        .mark_text(
-            align="left",
-            dx=6,
-            baseline="middle",
-            fontSize=13
-        )
+        alt.Chart(view)
+        .mark_text(align="left", dx=6, baseline="middle", fontSize=13)
         .encode(
             y=alt.Y("player_name:N", sort=y_sort),
             x=alt.X("Score:Q"),
-            text="right_label:N"
+            text="right_label:N",
         )
     )
 
     st.altair_chart(bars + labels, use_container_width=True)
+
+    # -----------------------------
+    # Leaderboard Table (Restored)
+    # -----------------------------
+    st.markdown("#### 📋 Current Top Table")
+    table = view[["Rank", "player_name", "Score", "Δ"]].rename(columns={"player_name": "Name"})
+    st.dataframe(table, use_container_width=True, hide_index=True)
 
     # -----------------------------
     # Autoplay engine
@@ -968,6 +967,7 @@ with tabs[3]:
             time.sleep(delay)
             st.session_state.race_drop += 1
             st.rerun()
+
 # =============================
 # Answer Key
 # =============================
@@ -1157,6 +1157,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
