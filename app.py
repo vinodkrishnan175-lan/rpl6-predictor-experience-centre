@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-st.set_page_config(page_title="RPL 6 Predictor Experience Centre", layout="wide")
+st.set_page_config(page_title="RPL 6 Predictor: Experience Centre", layout="wide")
 
 # --- Broadcast hero header (gold accent) ---
 st.markdown("""
@@ -17,7 +17,7 @@ st.markdown("""
 ">
   <div style="display:flex;align-items:center;gap:16px;">
     <div style="font-size:34px;font-weight:900;color:#f5c542;line-height:1;">
-      🏆 RPL 6 Predictor Experience Centre
+      🏆 RPL 6 Predictor: Experience Centre
     </div>
     <div style="opacity:0.92;font-size:14px;margin-left:8px;">
       Season review • Drop-by-drop analytics • Leaderboard race • Answer archive
@@ -1018,6 +1018,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
