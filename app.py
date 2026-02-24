@@ -813,15 +813,13 @@ with tabs[2]:
     st.dataframe(log, use_container_width=True, hide_index=True)
   
 # =============================
-# Leaderboard Race (Replay Mode)
+# Leaderboard Race (Replay Mode) — AUTOPLAY FIXED
 # =============================
 with tabs[3]:
-
     st.header("📈 Leaderboard Race — Replay Mode")
     st.caption("Press Play to auto-replay the leaderboard evolution drop by drop.")
 
     import altair as alt
-    import time
 
     max_drop = int(drop_master["drop"].max())
 
@@ -832,45 +830,64 @@ with tabs[3]:
         st.session_state.race_drop = 1
     if "race_playing" not in st.session_state:
         st.session_state.race_playing = False
+    if "race_tick_prev" not in st.session_state:
+        st.session_state.race_tick_prev = 0
 
     # -----------------------------
     # Controls
     # -----------------------------
-    col1, col2, col3 = st.columns([2, 1, 1])
+    c1, c2, c3 = st.columns([2, 1, 1])
 
-    with col1:
+    with c1:
         top_n = st.slider(
             "Show Top N players",
             min_value=5,
             max_value=25,
             value=12,
             step=1,
-            key="race_topn"
+            key="race_topn",
         )
 
-    with col2:
+    with c2:
         if st.session_state.race_playing:
-            if st.button("⏸ Pause"):
+            if st.button("⏸ Pause", key="race_pause_btn"):
                 st.session_state.race_playing = False
         else:
-            if st.button("▶️ Play"):
+            if st.button("▶️ Play", key="race_play_btn"):
                 st.session_state.race_playing = True
 
-    with col3:
-        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
-        delay_map = {"Slow": 0.8, "Normal": 0.4, "Fast": 0.2}
-        delay = delay_map[speed]
+    with c3:
+        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1, key="race_speed")
+        delay_map = {"Slow": 900, "Normal": 450, "Fast": 250}  # milliseconds
+        interval_ms = delay_map[speed]
 
-    # THIS slider controls the same state variable
+    # Slider controls the same state variable
     st.slider(
         "Replay drop",
         min_value=1,
         max_value=max_drop,
         step=1,
-        key="race_drop"
+        key="race_drop",
     )
 
     current_drop = int(st.session_state.race_drop)
+
+    # -----------------------------
+    # AUTOPLAY ENGINE (uses autorefresh)
+    # -----------------------------
+    if st.session_state.race_playing:
+        tick = st.autorefresh(interval=interval_ms, key="race_autorefresh")
+        # advance only when tick increments (prevents double-advancing in same run)
+        if tick != st.session_state.race_tick_prev:
+            st.session_state.race_tick_prev = tick
+
+            if st.session_state.race_drop >= max_drop:
+                st.session_state.race_playing = False
+            else:
+                st.session_state.race_drop += 1
+
+        # update current_drop after potential increment
+        current_drop = int(st.session_state.race_drop)
 
     # -----------------------------
     # Build leaderboard up to current drop
@@ -880,14 +897,13 @@ with tabs[3]:
         tmp.groupby("player_name", as_index=False)["points"].sum()
         .rename(columns={"points": "Score"})
     )
-
     scores["Rank"] = scores["Score"].rank(method="dense", ascending=False).astype(int)
     scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
 
     view = scores.head(top_n).copy()
 
     # -----------------------------
-    # Add movement arrows
+    # Movement arrows vs previous drop
     # -----------------------------
     prev_tmp = merged[merged["drop"] <= max(current_drop - 1, 1)].copy()
     prev_scores = (
@@ -914,17 +930,19 @@ with tabs[3]:
     # -----------------------------
     st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
+    view["Score"] = pd.to_numeric(view["Score"], errors="coerce").fillna(0)
+    view["Rank"] = pd.to_numeric(view["Rank"], errors="coerce").fillna(999).astype(int)
+
     view["right_label"] = (
-        view["player_name"]
+        view["player_name"].astype(str)
         + " — "
         + view["Score"].astype(int).astype(str)
         + " pts ("
-        + view["Δ"]
+        + view["Δ"].astype(str)
         + ")"
     )
 
     y_sort = alt.SortField(field="Rank", order="ascending")
-
     max_score = float(view["Score"].max()) if len(view) else 1
     x_max = max_score * 1.3
 
@@ -951,23 +969,11 @@ with tabs[3]:
     st.altair_chart(bars + labels, use_container_width=True)
 
     # -----------------------------
-    # Leaderboard Table (Restored)
+    # Table view
     # -----------------------------
     st.markdown("#### 📋 Current Top Table")
     table = view[["Rank", "player_name", "Score", "Δ"]].rename(columns={"player_name": "Name"})
     st.dataframe(table, use_container_width=True, hide_index=True)
-
-    # -----------------------------
-    # Autoplay engine
-    # -----------------------------
-    if st.session_state.race_playing:
-        if st.session_state.race_drop >= max_drop:
-            st.session_state.race_playing = False
-        else:
-            time.sleep(delay)
-            st.session_state.race_drop += 1
-            st.rerun()
-
 # =============================
 # Answer Key
 # =============================
@@ -1157,6 +1163,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
