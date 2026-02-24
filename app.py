@@ -950,51 +950,55 @@ with tabs[3]:
 
     st.divider()
 
-    # -----------------------------
-    # Race board: ranked bars
-    # -----------------------------
-    st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
+# -----------------------------
+# Race board: ranked bars (Altair) — FIXED
+# -----------------------------
+st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
-    import altair as alt
+import altair as alt
 
-    chart_df = view.sort_values(["Score", "player_name"], ascending=[False, True]).copy()
+chart_df = view.copy()
 
-    # Create a stable colour mapping (based on final leaderboard order)
-    final_players = final_lb_raw.sort_values("rank")["player_name"].tolist()
+# Ensure types
+chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
+chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").fillna(999).astype(int)
 
-    color_scale = alt.Scale(
-      domain=final_players,
-      range=[
-        "#f5c542", "#00bcd4", "#ff7043", "#66bb6a", "#ab47bc",
-        "#42a5f5", "#ef5350", "#26c6da", "#ffca28", "#8d6e63",
-        "#78909c", "#7e57c2", "#ec407a", "#9ccc65", "#ffa726",
-        "#29b6f6", "#ff5252", "#26a69a", "#d4e157", "#ff8a65",
-        "#b39ddb", "#80cbc4", "#ffd54f", "#4dd0e1", "#ba68c8"
-      ][:len(final_players)]
+# Right-end label text (name + score + movement)
+chart_df["right_label"] = (
+    chart_df["player_name"]
+    + "  —  "
+    + chart_df["Score"].astype(int).astype(str)
+    + " pts  ("
+    + chart_df["Δ"].astype(str)
+    + ")"
+)
+
+# IMPORTANT: sort bars by Rank so it changes every drop
+y_sort = alt.SortField(field="Rank", order="ascending")
+
+bars = (
+    alt.Chart(chart_df)
+    .mark_bar(cornerRadiusEnd=4)
+    .encode(
+        y=alt.Y("player_name:N", sort=y_sort, title=""),
+        x=alt.X("Score:Q", title="Points"),
+        color=alt.Color("player_name:N", legend=None),
+        tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
     )
+)
 
-    bars = (
-      alt.Chart(chart_df)
-      .mark_bar()
-      .encode(
-          y=alt.Y("player_name:N", sort="-x", title=""),
-          x=alt.X("Score:Q", title="Points"),
-          color=alt.Color("player_name:N", scale=color_scale, legend=None),
-          tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
-      )
-    ) 
-
-    labels = (
-        alt.Chart(chart_df)
-        .mark_text(align="left", dx=6)
-        .encode(
-            y=alt.Y("player_name:N", sort="-x"),
-            x=alt.X("Score:Q"),
-            text=alt.Text("Δ:O"),
-        )
+# Put label at the RIGHT end of each bar
+right_labels = (
+    alt.Chart(chart_df)
+    .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+    .encode(
+        y=alt.Y("player_name:N", sort=y_sort),
+        x=alt.X("Score:Q"),
+        text=alt.Text("right_label:N")
     )
+)
 
-    st.altair_chart(bars + labels, use_container_width=True)
+st.altair_chart(bars + right_labels, use_container_width=True)
 
     # -----------------------------
     # Table view
@@ -1191,6 +1195,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
