@@ -347,6 +347,9 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 with tabs[0]:
     st.header("🏁 Season Overview")
 
+    # -----------------------------
+    # Season summary tiles
+    # -----------------------------
     total_participants = merged["player_name"].nunique()
     active_count = len(active_set)
     total_predictions = int(merged["attempted"].sum())
@@ -362,8 +365,9 @@ with tabs[0]:
 
     st.divider()
 
-    # both PP correct / wrong (two tiles)
-        # PP tiles row (same style as metrics)
+    # -----------------------------
+    # PP / Attendance tiles row
+    # -----------------------------
     a, b, c = st.columns(3)
 
     with a:
@@ -383,15 +387,17 @@ with tabs[0]:
 
     st.divider()
 
+    # -----------------------------
+    # Full Leaderboard + Awards + Chart
+    # -----------------------------
     st.subheader("Full Leaderboard")
 
-    # --- Awards Night Podium + Polished Leaderboard Chart ---
-    # Prepare numeric score + top order
+    # Prepare numeric score + sorted leaderboard
     viz_df = final_lb.copy()
     viz_df["Score"] = pd.to_numeric(viz_df["Score"], errors="coerce").fillna(0)
     viz_df = viz_df.sort_values(["Score", "Name"], ascending=[False, True]).reset_index(drop=True)
 
-           # ===== Compact Awards Podium (Top 3 ranks with ties) =====
+    # ===== Awards Podium CSS =====
     st.markdown("""
     <style>
       .podium-row{
@@ -412,13 +418,10 @@ with tabs[0]:
         border-color: rgba(245,197,66,0.45);
         background: radial-gradient(circle at 18% 0%, rgba(245,197,66,0.25), rgba(0,0,0,0) 55%),
                     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+        box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
+                    0 0 26px rgba(245,197,66,0.18),
+                    0 16px 34px rgba(0,0,0,0.45);
       }
-      .pod.gold{
-       box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
-              0 0 26px rgba(245,197,66,0.18),
-              0 16px 34px rgba(0,0,0,0.45);
-       position: relative;
-       }
       .pod.silver{
         border-color: rgba(200,200,200,0.38);
         background: radial-gradient(circle at 18% 0%, rgba(200,200,200,0.18), rgba(0,0,0,0) 55%),
@@ -432,26 +435,25 @@ with tabs[0]:
       .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
       .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
       .pod-pts{ font-weight: 950; }
-
-      .pod-pts{
-        font-weight: 900;
-      }
       @media (max-width: 900px){
         .podium-row{ grid-template-columns: 1fr; }
       }
     </style>
     """, unsafe_allow_html=True)
 
+    # Podium groups (ties handled because Rank already exists in final_lb)
     podium_df = viz_df.copy()
     gold_df = podium_df[podium_df["Rank"] == 1][["Name", "Score"]]
     silver_df = podium_df[podium_df["Rank"] == 2][["Name", "Score"]]
     bronze_df = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
 
     def render_lines(df):
+        if df.empty:
+            return '<div style="opacity:0.7">—</div>'
         html = ""
         for _, r in df.iterrows():
             html += f'<div class="pod-line"><span>{r["Name"]}</span><span class="pod-pts">{int(r["Score"])} pts</span></div>'
-        return html if html else '<div style="opacity:0.7">—</div>'
+        return html
 
     st.markdown(f"""
       <div class="podium-row">
@@ -472,60 +474,45 @@ with tabs[0]:
 
     st.divider()
 
-    # ===== Polished bar chart =====
+    # ===== Leaderboard bar chart (with names at the right end) =====
     st.caption("Leaderboard visual (Top N by score). Use the slider to expand the field.")
-
     top_n = st.slider("Show Top N", min_value=10, max_value=25, value=15, step=1, key="lb_topn")
 
     chart_df = viz_df.head(top_n).copy()
-
-import altair as alt
-
-chart_df = view.copy()
-
-# Ensure numeric
-chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
-
-# Create a combined label for the right edge
-chart_df["right_label"] = chart_df["player_name"] + "  (" + chart_df["Score"].astype(int).astype(str) + " pts, " + chart_df["Δ"].astype(str) + ")"
-
-# IMPORTANT: Sort by Rank (this is what makes it change every drop)
-y_sort = alt.SortField(field="Rank", order="ascending")
-
-bars = (
-    alt.Chart(chart_df)
-    .mark_bar(cornerRadiusEnd=4)
-    .encode(
-        y=alt.Y("player_name:N", sort=y_sort, title="", axis=alt.Axis(labels=False, ticks=False)),
-        x=alt.X("Score:Q", title="Points"),
-        color=alt.Color("player_name:N", legend=None),
-        tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+    chart_df["right_label"] = (
+        chart_df["Name"]
+        + "  ("
+        + chart_df["Score"].astype(int).astype(str)
+        + " pts)"
     )
-)
 
-# Name + score label at the RIGHT end of the bar
-name_labels = (
-    alt.Chart(chart_df)
-    .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
-    .encode(
-        y=alt.Y("player_name:N", sort=y_sort),
-        x=alt.X("Score:Q"),
-        text=alt.Text("right_label:N")
+    import altair as alt
+
+    # Sort Y by Rank so order is stable and intuitive
+    y_sort = alt.SortField(field="Rank", order="ascending")
+
+    bars = (
+        alt.Chart(chart_df)
+        .mark_bar(cornerRadiusEnd=4)
+        .encode(
+            y=alt.Y("Name:N", sort=y_sort, title="", axis=alt.Axis(labels=False, ticks=False)),
+            x=alt.X("Score:Q", title="Points"),
+            color=alt.Color("Name:N", legend=None),
+            tooltip=["Rank:Q", "Name:N", "Score:Q"]
+        )
     )
-)
 
-# Small Δ label slightly inside the bar (optional but nice)
-delta_labels = (
-    alt.Chart(chart_df)
-    .mark_text(align="right", dx=-6, baseline="middle", fontSize=12, opacity=0.9)
-    .encode(
-        y=alt.Y("player_name:N", sort=y_sort),
-        x=alt.X("Score:Q"),
-        text=alt.Text("Δ:O")
+    name_labels = (
+        alt.Chart(chart_df)
+        .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+        .encode(
+            y=alt.Y("Name:N", sort=y_sort),
+            x=alt.X("Score:Q"),
+            text=alt.Text("right_label:N")
+        )
     )
-)
 
-st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
+    st.altair_chart(bars + name_labels, use_container_width=True)
 
     scores_all = viz_df["Score"]
     st.caption(
@@ -534,8 +521,8 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
         f"Median: {scores_all.median():.0f} • "
         f"Lowest: {scores_all.min():.0f}"
     )
-    # --- end awards + chart ---
 
+    # Full leaderboard table
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
 
     st.divider()
@@ -561,6 +548,7 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
         hide_index=True
     )
 
+    st.markdown("#### Players who got the hardest drops right (PP used called out)")
     for _, r in hardest_df.iterrows():
         d = int(r["drop"])
         subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
@@ -572,12 +560,7 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
         )
 
         st.markdown('<div class="qa-card">', unsafe_allow_html=True)
-
-        st.markdown(
-            f'<div class="qa-title">Drop {d} — {r["question"]}</div>',
-            unsafe_allow_html=True
-        )
-
+        st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
         st.markdown(
             f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
             unsafe_allow_html=True
@@ -589,7 +572,6 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
             st.write("🧊 No players used Power Play for this question.")
 
         st.write(", ".join(names) if names else "No one got this right.")
-
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
@@ -615,6 +597,7 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
         hide_index=True
     )
 
+    st.markdown("#### Players who got the easiest drops right (PP used called out)")
     for _, r in easiest_df.iterrows():
         d = int(r["drop"])
         subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
@@ -626,12 +609,7 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
         )
 
         st.markdown('<div class="qa-card">', unsafe_allow_html=True)
-
-        st.markdown(
-            f'<div class="qa-title">Drop {d} — {r["question"]}</div>',
-            unsafe_allow_html=True
-        )
-
+        st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
         st.markdown(
             f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
             unsafe_allow_html=True
@@ -643,11 +621,13 @@ st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
             st.write("🧊 No players used Power Play for this question.")
 
         st.write(", ".join(names) if names else "No responses.")
-
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
-        
+
+    # -------------------------
+    # Unsolved drops
+    # -------------------------
     st.subheader("Unsolved Drops (0 correct)")
     if len(unsolved_df) == 0:
         st.write("None — every question had at least one correct answer.")
@@ -1211,6 +1191,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
