@@ -822,23 +822,30 @@ with tabs[3]:
     import altair as alt
     import time
 
-    # -----------------------------
-    # Controls
-    # -----------------------------
     max_drop = int(drop_master["drop"].max())
 
+    # -----------------------------
     # Session state defaults
+    # -----------------------------
     if "race_drop" not in st.session_state:
         st.session_state.race_drop = 1
     if "race_playing" not in st.session_state:
         st.session_state.race_playing = False
 
+    # -----------------------------
+    # Controls (IMPORTANT: slider key == race_drop)
+    # -----------------------------
     cA, cB, cC = st.columns([2, 1, 1])
 
     with cA:
-        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1, key="race_topn")
+        top_n = st.slider(
+            "Show Top N players",
+            min_value=5, max_value=25, value=12, step=1,
+            key="race_topn"
+        )
 
     with cB:
+        # Toggle play/pause
         if st.session_state.race_playing:
             if st.button("⏸ Pause", key="race_pause"):
                 st.session_state.race_playing = False
@@ -851,6 +858,17 @@ with tabs[3]:
 
     speed_map = {"Slow": 0.8, "Normal": 0.35, "Fast": 0.15}
     delay = speed_map[speed]
+
+    # This slider is now the SINGLE source of truth (same key as state we increment)
+    st.slider(
+        "Replay drop",
+        min_value=1,
+        max_value=max_drop,
+        step=1,
+        key="race_drop"   # <-- critical fix
+    )
+
+    current_drop = int(st.session_state.race_drop)
 
     # -----------------------------
     # Helper: leaderboard as of drop d
@@ -865,17 +883,6 @@ with tabs[3]:
         scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
         return scores
 
-    # Manual override slider (always allowed)
-    current_drop = st.slider(
-        "Replay drop",
-        min_value=1,
-        max_value=max_drop,
-        value=int(st.session_state.race_drop),
-        step=1,
-        key="race_drop_slider",
-    )
-    st.session_state.race_drop = current_drop
-
     # -----------------------------
     # Compute current + previous standings (movement arrows)
     # -----------------------------
@@ -887,9 +894,8 @@ with tabs[3]:
         on="player_name",
         how="left",
     )
-
     now_lb["PrevRank"] = now_lb["PrevRank"].fillna(now_lb["Rank"]).astype(int)
-    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]  # +ve means moved up
+    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]
 
     def arrow(m: int) -> str:
         if m > 0:
@@ -900,12 +906,13 @@ with tabs[3]:
 
     now_lb["Δ"] = now_lb["Move"].apply(arrow)
 
-    # -----------------------------
     # Top N view + podium
-    # -----------------------------
-    view = now_lb.sort_values(["Rank", "player_name"]).head(top_n).copy()
+    view = now_lb.sort_values(["Rank", "player_name"]).head(int(top_n)).copy()
     podium = now_lb[now_lb["Rank"].isin([1, 2, 3])].sort_values(["Rank", "player_name"]).copy()
 
+    # -----------------------------
+    # Podium cards
+    # -----------------------------
     st.markdown("### 🏆 Podium (as of this drop)")
     p1, p2, p3 = st.columns(3)
 
@@ -952,7 +959,7 @@ with tabs[3]:
     st.divider()
 
     # -----------------------------
-    # Race board: ranked bars (Altair)
+    # Race board (Altair)
     # -----------------------------
     st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
@@ -960,7 +967,6 @@ with tabs[3]:
     chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
     chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").fillna(999).astype(int)
 
-    # label at right end (name + score + movement)
     chart_df["right_label"] = (
         chart_df["player_name"]
         + " — "
@@ -970,7 +976,10 @@ with tabs[3]:
         + ")"
     )
 
-    # KEY: this makes the y-order change every drop
+    # give room on the right for the label
+    max_score = float(chart_df["Score"].max()) if len(chart_df) else 1.0
+    x_domain_max = max_score * 1.35
+
     y_sort = alt.SortField(field="Rank", order="ascending")
 
     bars = (
@@ -978,14 +987,13 @@ with tabs[3]:
         .mark_bar(cornerRadiusEnd=4)
         .encode(
             y=alt.Y("player_name:N", sort=y_sort, title=""),
-            x=alt.X("Score:Q", title="Points"),
+            x=alt.X("Score:Q", title="Points", scale=alt.Scale(domain=[0, x_domain_max])),
             color=alt.Color("player_name:N", legend=None),
             tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"],
         )
     )
 
-    # put label at the right end of bar
-    labels = (
+    right_labels = (
         alt.Chart(chart_df)
         .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
         .encode(
@@ -995,17 +1003,14 @@ with tabs[3]:
         )
     )
 
-    st.altair_chart(bars + labels, use_container_width=True)
+    st.altair_chart(bars + right_labels, use_container_width=True)
 
-    # -----------------------------
-    # Table view
-    # -----------------------------
     st.markdown("#### 📋 Current Top Table")
     table = view[["Rank", "player_name", "Score", "Δ"]].rename(columns={"player_name": "Name"})
     st.dataframe(table, use_container_width=True, hide_index=True)
 
     # -----------------------------
-    # Auto-play engine
+    # Auto-play engine (continues on rerun)
     # -----------------------------
     if st.session_state.race_playing:
         if st.session_state.race_drop >= max_drop:
@@ -1014,6 +1019,7 @@ with tabs[3]:
             time.sleep(delay)
             st.session_state.race_drop += 1
             st.rerun()
+          
 # =============================
 # Answer Key
 # =============================
@@ -1203,6 +1209,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
