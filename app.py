@@ -818,29 +818,181 @@ with tabs[2]:
 # Leaderboard Race (Cumulative points over drops)
 # =============================
 with tabs[3]:
-    st.header("📈 Leaderboard Race")
-    st.caption("This shows how each player's score accumulated after each drop. Movement vs other players can also be tracked drop by drop.")
+    st.header("📈 Leaderboard Race — Replay Mode")
+    st.caption("Move the slider or press Play to replay how the leaderboard changed after every drop.")
 
-    top_n = st.slider("Show top N players (by final result)", min_value=5, max_value=20, value=10, step=1)
-    focus_players = final_lb_raw.sort_values(["rank", "player_name"]).head(top_n)["player_name"].tolist()
+    # -----------------------------
+    # Controls
+    # -----------------------------
+    max_drop = int(drop_master["drop"].max())
+    cA, cB, cC = st.columns([2, 1, 1])
 
-    drops = drop_master["drop"].tolist()
+    with cA:
+        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
 
-    # cumulative points timeline
-    timeline = []
-    for d in drops:
-        upto = merged[merged["drop"] <= d]
-        pts = (
-            upto.groupby("player_name", as_index=False)["points"].sum()
-            .rename(columns={"points": "cum_points"})
+    with cB:
+        play = st.button("▶️ Play")
+
+    with cC:
+        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
+
+    speed_map = {"Slow": 0.8, "Normal": 0.35, "Fast": 0.15}
+    delay = speed_map[speed]
+
+    # -----------------------------
+    # Helper: leaderboard as of drop d
+    # -----------------------------
+    def leaderboard_asof(d: int) -> pd.DataFrame:
+        tmp = merged[merged["drop"] <= d].copy()
+        scores = (
+            tmp.groupby("player_name", as_index=False)["points"].sum()
+            .rename(columns={"points": "Score"})
         )
-        pts = pts[pts["player_name"].isin(focus_players)].copy()
-        pts["drop"] = d
-        timeline.append(pts)
+        # Rank: higher score = better (rank 1)
+        scores["Rank"] = scores["Score"].rank(method="dense", ascending=False).astype(int)
+        scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
+        return scores
 
-    tl = pd.concat(timeline, ignore_index=True)
-    pivot = tl.pivot(index="drop", columns="player_name", values="cum_points").sort_index()
-    st.line_chart(pivot)
+    # -----------------------------
+    # Keep state for "Play"
+    # -----------------------------
+    if "race_drop" not in st.session_state:
+        st.session_state.race_drop = 1
+
+    # If user hits play, we increment automatically
+    if play:
+        # simple "replay loop": step forward each rerun
+        if st.session_state.race_drop < max_drop:
+            st.session_state.race_drop += 1
+        else:
+            st.session_state.race_drop = 1
+
+    # Manual override slider (always allowed)
+    current_drop = st.slider(
+        "Replay drop",
+        min_value=1,
+        max_value=max_drop,
+        value=int(st.session_state.race_drop),
+        step=1,
+        key="race_drop"
+    )
+
+    # -----------------------------
+    # Compute current + previous standings (for movement arrows)
+    # -----------------------------
+    now_lb = leaderboard_asof(current_drop)
+    prev_lb = leaderboard_asof(max(current_drop - 1, 1))
+
+    now_lb = now_lb.merge(
+        prev_lb[["player_name", "Rank"]].rename(columns={"Rank": "PrevRank"}),
+        on="player_name",
+        how="left"
+    )
+
+    now_lb["PrevRank"] = now_lb["PrevRank"].fillna(now_lb["Rank"]).astype(int)
+    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]  # positive = moved up
+
+    def arrow(m):
+        if m > 0: return f"⬆️ {m}"
+        if m < 0: return f"⬇️ {abs(m)}"
+        return "—"
+
+    now_lb["Δ"] = now_lb["Move"].apply(arrow)
+
+    # -----------------------------
+    # Top N view + podium
+    # -----------------------------
+    view = now_lb.sort_values(["Rank", "player_name"]).head(top_n).copy()
+
+    # Podium groups (handles ties)
+    podium = now_lb[now_lb["Rank"].isin([1, 2, 3])].sort_values(["Rank", "player_name"]).copy()
+
+    # -----------------------------
+    # Podium cards (3 blocks side-by-side)
+    # -----------------------------
+    st.markdown("### 🏆 Podium (as of this drop)")
+    p1, p2, p3 = st.columns(3)
+
+    def names_for_rank(rk):
+        x = podium[podium["Rank"] == rk]
+        if x.empty:
+            return "—"
+        return "<br>".join([f"**{row.player_name}** — {int(row.Score)} pts" for _, row in x.iterrows()])
+
+    p1.markdown(f"""
+    <div style="border:1px solid rgba(245,197,66,0.30); border-radius:14px; padding:12px;
+                background: linear-gradient(90deg, rgba(245,197,66,0.25), rgba(0,0,0,0));
+                box-shadow: 0 0 18px rgba(245,197,66,0.18);">
+      <div style="font-weight:900; font-size:16px;">🥇 GOLD (Rank 1)</div>
+      <div style="margin-top:8px; font-size:15px;">{names_for_rank(1)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    p2.markdown(f"""
+    <div style="border:1px solid rgba(255,255,255,0.16); border-radius:14px; padding:12px;
+                background: linear-gradient(90deg, rgba(200,200,200,0.16), rgba(0,0,0,0));">
+      <div style="font-weight:900; font-size:16px;">🥈 SILVER (Rank 2)</div>
+      <div style="margin-top:8px; font-size:15px;">{names_for_rank(2)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    p3.markdown(f"""
+    <div style="border:1px solid rgba(205,127,50,0.25); border-radius:14px; padding:12px;
+                background: linear-gradient(90deg, rgba(205,127,50,0.18), rgba(0,0,0,0));">
+      <div style="font-weight:900; font-size:16px;">🥉 BRONZE (Rank 3)</div>
+      <div style="margin-top:8px; font-size:15px;">{names_for_rank(3)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # -----------------------------
+    # Race board: ranked bars (Altair)
+    # -----------------------------
+    st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
+
+    import altair as alt
+
+    chart_df = view.copy()
+    # Make bars descending by score
+    chart_df = chart_df.sort_values(["Score", "player_name"], ascending=[False, True])
+
+    bars = (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            y=alt.Y("player_name:N", sort="-x", title=""),
+            x=alt.X("Score:Q", title="Points"),
+            tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+        )
+    )
+
+    labels = (
+        alt.Chart(chart_df)
+        .mark_text(align="left", dx=6)
+        .encode(
+            y=alt.Y("player_name:N", sort="-x"),
+            x=alt.X("Score:Q"),
+            text=alt.Text("Δ:O")
+        )
+    )
+
+    st.altair_chart(bars + labels, use_container_width=True)
+
+    # -----------------------------
+    # Table view (optional, crisp)
+    # -----------------------------
+    st.markdown("#### 📋 Current Top Table")
+    table = view[["Rank", "player_name", "Score", "Δ"]].rename(columns={"player_name": "Name"})
+    st.dataframe(table, use_container_width=True, hide_index=True)
+
+    # -----------------------------
+    # Auto-play effect (re-run)
+    # -----------------------------
+    if play:
+        import time
+        time.sleep(delay)
+        st.rerun()
 
 # =============================
 # Answer Key
@@ -1018,6 +1170,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
