@@ -815,38 +815,38 @@ with tabs[2]:
     st.dataframe(log, use_container_width=True, hide_index=True)
   
 # =============================
-# Leaderboard Race (Cumulative points over drops)
+# Leaderboard Race (Replay Mode)
 # =============================
 with tabs[3]:
     st.header("📈 Leaderboard Race — Replay Mode")
     st.caption("Move the slider or press Play to replay how the leaderboard changed after every drop.")
 
-# -----------------------------
-# Controls
-# -----------------------------
-max_drop = int(drop_master["drop"].max())
+    # -----------------------------
+    # Controls
+    # -----------------------------
+    max_drop = int(drop_master["drop"].max())
 
-# Session state defaults
-if "race_drop" not in st.session_state:
-    st.session_state.race_drop = 1
-if "race_playing" not in st.session_state:
-    st.session_state.race_playing = False
+    # Session state defaults
+    if "race_drop" not in st.session_state:
+        st.session_state.race_drop = 1
+    if "race_playing" not in st.session_state:
+        st.session_state.race_playing = False
 
-cA, cB, cC = st.columns([2, 1, 1])
+    cA, cB, cC = st.columns([2, 1, 1])
 
-with cA:
-    top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
+    with cA:
+        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
 
-with cB:
-    if st.session_state.race_playing:
-        if st.button("⏸ Pause"):
-            st.session_state.race_playing = False
-    else:
-        if st.button("▶️ Play"):
-            st.session_state.race_playing = True
+    with cB:
+        if st.session_state.race_playing:
+            if st.button("⏸ Pause"):
+                st.session_state.race_playing = False
+        else:
+            if st.button("▶️ Play"):
+                st.session_state.race_playing = True
 
-with cC:
-    speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
+    with cC:
+        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
 
     speed_map = {"Slow": 0.8, "Normal": 0.35, "Fast": 0.15}
     delay = speed_map[speed]
@@ -860,18 +860,17 @@ with cC:
             tmp.groupby("player_name", as_index=False)["points"].sum()
             .rename(columns={"points": "Score"})
         )
-        # Rank: higher score = better (rank 1)
         scores["Rank"] = scores["Score"].rank(method="dense", ascending=False).astype(int)
         scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
         return scores
 
     # Manual override slider (always allowed)
     current_drop = st.slider(
-    "Replay drop",
-    min_value=1,
-    max_value=max_drop,
-    value=int(st.session_state.race_drop),
-    step=1
+        "Replay drop",
+        min_value=1,
+        max_value=max_drop,
+        value=int(st.session_state.race_drop),
+        step=1,
     )
     st.session_state.race_drop = current_drop
 
@@ -884,15 +883,17 @@ with cC:
     now_lb = now_lb.merge(
         prev_lb[["player_name", "Rank"]].rename(columns={"Rank": "PrevRank"}),
         on="player_name",
-        how="left"
+        how="left",
     )
 
     now_lb["PrevRank"] = now_lb["PrevRank"].fillna(now_lb["Rank"]).astype(int)
     now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]  # positive = moved up
 
     def arrow(m):
-        if m > 0: return f"⬆️ {m}"
-        if m < 0: return f"⬇️ {abs(m)}"
+        if m > 0:
+            return f"⬆️ {m}"
+        if m < 0:
+            return f"⬇️ {abs(m)}"
         return "—"
 
     now_lb["Δ"] = now_lb["Move"].apply(arrow)
@@ -901,12 +902,10 @@ with cC:
     # Top N view + podium
     # -----------------------------
     view = now_lb.sort_values(["Rank", "player_name"]).head(top_n).copy()
-
-    # Podium groups (handles ties)
     podium = now_lb[now_lb["Rank"].isin([1, 2, 3])].sort_values(["Rank", "player_name"]).copy()
 
     # -----------------------------
-    # Podium cards (3 blocks side-by-side)
+    # Podium cards
     # -----------------------------
     st.markdown("### 🏆 Podium (as of this drop)")
     p1, p2, p3 = st.columns(3)
@@ -917,43 +916,50 @@ with cC:
             return "—"
         return "<br>".join([f"**{row.player_name}** — {int(row.Score)} pts" for _, row in x.iterrows()])
 
-    p1.markdown(f"""
-    <div style="border:1px solid rgba(245,197,66,0.30); border-radius:14px; padding:12px;
-                background: linear-gradient(90deg, rgba(245,197,66,0.25), rgba(0,0,0,0));
-                box-shadow: 0 0 18px rgba(245,197,66,0.18);">
-      <div style="font-weight:900; font-size:16px;">🥇 GOLD (Rank 1)</div>
-      <div style="margin-top:8px; font-size:15px;">{names_for_rank(1)}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    p1.markdown(
+        f"""
+        <div style="border:1px solid rgba(245,197,66,0.30); border-radius:14px; padding:12px;
+                    background: linear-gradient(90deg, rgba(245,197,66,0.25), rgba(0,0,0,0));
+                    box-shadow: 0 0 18px rgba(245,197,66,0.18);">
+          <div style="font-weight:900; font-size:16px;">🥇 GOLD (Rank 1)</div>
+          <div style="margin-top:8px; font-size:15px;">{names_for_rank(1)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    p2.markdown(f"""
-    <div style="border:1px solid rgba(255,255,255,0.16); border-radius:14px; padding:12px;
-                background: linear-gradient(90deg, rgba(200,200,200,0.16), rgba(0,0,0,0));">
-      <div style="font-weight:900; font-size:16px;">🥈 SILVER (Rank 2)</div>
-      <div style="margin-top:8px; font-size:15px;">{names_for_rank(2)}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    p2.markdown(
+        f"""
+        <div style="border:1px solid rgba(255,255,255,0.16); border-radius:14px; padding:12px;
+                    background: linear-gradient(90deg, rgba(200,200,200,0.16), rgba(0,0,0,0));">
+          <div style="font-weight:900; font-size:16px;">🥈 SILVER (Rank 2)</div>
+          <div style="margin-top:8px; font-size:15px;">{names_for_rank(2)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    p3.markdown(f"""
-    <div style="border:1px solid rgba(205,127,50,0.25); border-radius:14px; padding:12px;
-                background: linear-gradient(90deg, rgba(205,127,50,0.18), rgba(0,0,0,0));">
-      <div style="font-weight:900; font-size:16px;">🥉 BRONZE (Rank 3)</div>
-      <div style="margin-top:8px; font-size:15px;">{names_for_rank(3)}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    p3.markdown(
+        f"""
+        <div style="border:1px solid rgba(205,127,50,0.25); border-radius:14px; padding:12px;
+                    background: linear-gradient(90deg, rgba(205,127,50,0.18), rgba(0,0,0,0));">
+          <div style="font-weight:900; font-size:16px;">🥉 BRONZE (Rank 3)</div>
+          <div style="margin-top:8px; font-size:15px;">{names_for_rank(3)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.divider()
 
     # -----------------------------
-    # Race board: ranked bars (Altair)
+    # Race board: ranked bars
     # -----------------------------
     st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
     import altair as alt
 
-    chart_df = view.copy()
-    # Make bars descending by score
-    chart_df = chart_df.sort_values(["Score", "player_name"], ascending=[False, True])
+    chart_df = view.sort_values(["Score", "player_name"], ascending=[False, True]).copy()
 
     bars = (
         alt.Chart(chart_df)
@@ -961,7 +967,7 @@ with cC:
         .encode(
             y=alt.Y("player_name:N", sort="-x", title=""),
             x=alt.X("Score:Q", title="Points"),
-            tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+            tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"],
         )
     )
 
@@ -971,14 +977,14 @@ with cC:
         .encode(
             y=alt.Y("player_name:N", sort="-x"),
             x=alt.X("Score:Q"),
-            text=alt.Text("Δ:O")
+            text=alt.Text("Δ:O"),
         )
     )
 
     st.altair_chart(bars + labels, use_container_width=True)
 
     # -----------------------------
-    # Table view (optional, crisp)
+    # Table view
     # -----------------------------
     st.markdown("#### 📋 Current Top Table")
     table = view[["Rank", "player_name", "Score", "Δ"]].rename(columns={"player_name": "Name"})
@@ -990,13 +996,12 @@ with cC:
     import time
 
     if st.session_state.race_playing:
-      if st.session_state.race_drop >= max_drop:
-        st.session_state.race_playing = False  # stop at the end
-      else:
-        time.sleep(delay)
-        st.session_state.race_drop += 1
-        st.rerun()
-
+        if st.session_state.race_drop >= max_drop:
+            st.session_state.race_playing = False
+        else:
+            time.sleep(delay)
+            st.session_state.race_drop += 1
+            st.rerun()
 # =============================
 # Answer Key
 # =============================
@@ -1173,6 +1178,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
