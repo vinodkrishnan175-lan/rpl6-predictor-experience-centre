@@ -819,6 +819,9 @@ with tabs[3]:
     st.header("📈 Leaderboard Race — Replay Mode")
     st.caption("Move the slider or press Play to replay how the leaderboard changed after every drop.")
 
+    import altair as alt
+    import time
+
     # -----------------------------
     # Controls
     # -----------------------------
@@ -833,18 +836,18 @@ with tabs[3]:
     cA, cB, cC = st.columns([2, 1, 1])
 
     with cA:
-        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
+        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1, key="race_topn")
 
     with cB:
         if st.session_state.race_playing:
-            if st.button("⏸ Pause"):
+            if st.button("⏸ Pause", key="race_pause"):
                 st.session_state.race_playing = False
         else:
-            if st.button("▶️ Play"):
+            if st.button("▶️ Play", key="race_play"):
                 st.session_state.race_playing = True
 
     with cC:
-        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
+        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1, key="race_speed")
 
     speed_map = {"Slow": 0.8, "Normal": 0.35, "Fast": 0.15}
     delay = speed_map[speed]
@@ -869,11 +872,12 @@ with tabs[3]:
         max_value=max_drop,
         value=int(st.session_state.race_drop),
         step=1,
+        key="race_drop_slider",
     )
     st.session_state.race_drop = current_drop
 
     # -----------------------------
-    # Compute current + previous standings (for movement arrows)
+    # Compute current + previous standings (movement arrows)
     # -----------------------------
     now_lb = leaderboard_asof(current_drop)
     prev_lb = leaderboard_asof(max(current_drop - 1, 1))
@@ -885,9 +889,9 @@ with tabs[3]:
     )
 
     now_lb["PrevRank"] = now_lb["PrevRank"].fillna(now_lb["Rank"]).astype(int)
-    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]  # positive = moved up
+    now_lb["Move"] = now_lb["PrevRank"] - now_lb["Rank"]  # +ve means moved up
 
-    def arrow(m):
+    def arrow(m: int) -> str:
         if m > 0:
             return f"⬆️ {m}"
         if m < 0:
@@ -902,13 +906,10 @@ with tabs[3]:
     view = now_lb.sort_values(["Rank", "player_name"]).head(top_n).copy()
     podium = now_lb[now_lb["Rank"].isin([1, 2, 3])].sort_values(["Rank", "player_name"]).copy()
 
-    # -----------------------------
-    # Podium cards
-    # -----------------------------
     st.markdown("### 🏆 Podium (as of this drop)")
     p1, p2, p3 = st.columns(3)
 
-    def names_for_rank(rk):
+    def names_for_rank(rk: int) -> str:
         x = podium[podium["Rank"] == rk]
         if x.empty:
             return "—"
@@ -950,55 +951,51 @@ with tabs[3]:
 
     st.divider()
 
-# -----------------------------
-# Race board: ranked bars (Altair) — FIXED
-# -----------------------------
-st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
+    # -----------------------------
+    # Race board: ranked bars (Altair)
+    # -----------------------------
+    st.markdown(f"### 🎬 Race Board — After Drop {current_drop}")
 
-import altair as alt
+    chart_df = view.copy()
+    chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
+    chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").fillna(999).astype(int)
 
-chart_df = view.copy()
-
-# Ensure types
-chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
-chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").fillna(999).astype(int)
-
-# Right-end label text (name + score + movement)
-chart_df["right_label"] = (
-    chart_df["player_name"]
-    + "  —  "
-    + chart_df["Score"].astype(int).astype(str)
-    + " pts  ("
-    + chart_df["Δ"].astype(str)
-    + ")"
-)
-
-# IMPORTANT: sort bars by Rank so it changes every drop
-y_sort = alt.SortField(field="Rank", order="ascending")
-
-bars = (
-    alt.Chart(chart_df)
-    .mark_bar(cornerRadiusEnd=4)
-    .encode(
-        y=alt.Y("player_name:N", sort=y_sort, title=""),
-        x=alt.X("Score:Q", title="Points"),
-        color=alt.Color("player_name:N", legend=None),
-        tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+    # label at right end (name + score + movement)
+    chart_df["right_label"] = (
+        chart_df["player_name"]
+        + " — "
+        + chart_df["Score"].astype(int).astype(str)
+        + " pts  ("
+        + chart_df["Δ"].astype(str)
+        + ")"
     )
-)
 
-# Put label at the RIGHT end of each bar
-right_labels = (
-    alt.Chart(chart_df)
-    .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
-    .encode(
-        y=alt.Y("player_name:N", sort=y_sort),
-        x=alt.X("Score:Q"),
-        text=alt.Text("right_label:N")
+    # KEY: this makes the y-order change every drop
+    y_sort = alt.SortField(field="Rank", order="ascending")
+
+    bars = (
+        alt.Chart(chart_df)
+        .mark_bar(cornerRadiusEnd=4)
+        .encode(
+            y=alt.Y("player_name:N", sort=y_sort, title=""),
+            x=alt.X("Score:Q", title="Points"),
+            color=alt.Color("player_name:N", legend=None),
+            tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"],
+        )
     )
-)
 
-st.altair_chart(bars + right_labels, use_container_width=True)
+    # put label at the right end of bar
+    labels = (
+        alt.Chart(chart_df)
+        .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+        .encode(
+            y=alt.Y("player_name:N", sort=y_sort),
+            x=alt.X("Score:Q"),
+            text=alt.Text("right_label:N"),
+        )
+    )
+
+    st.altair_chart(bars + labels, use_container_width=True)
 
     # -----------------------------
     # Table view
@@ -1010,8 +1007,6 @@ st.altair_chart(bars + right_labels, use_container_width=True)
     # -----------------------------
     # Auto-play engine
     # -----------------------------
-    import time
-
     if st.session_state.race_playing:
         if st.session_state.race_drop >= max_drop:
             st.session_state.race_playing = False
@@ -1208,6 +1203,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
