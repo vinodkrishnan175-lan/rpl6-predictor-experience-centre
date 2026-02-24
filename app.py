@@ -479,35 +479,53 @@ with tabs[0]:
 
     chart_df = viz_df.head(top_n).copy()
 
-    import altair as alt
-    bar = (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            y=alt.Y("Name:N", sort="-x", title=""),
-            x=alt.X("Score:Q", title="Points"),
-            tooltip=[
-                alt.Tooltip("Rank:O", title="Rank"),
-                alt.Tooltip("Name:N", title="Player"),
-                alt.Tooltip("Score:Q", title="Points"),
-                alt.Tooltip("#PP correct:O", title="PP Correct"),
-                alt.Tooltip("Attendance%:N", title="Attendance")
-            ],
-        )
-        .properties(height=420)
-    )
+import altair as alt
 
-    labels = (
-        alt.Chart(chart_df)
-        .mark_text(align="left", dx=6)
-        .encode(
-            y=alt.Y("Name:N", sort="-x"),
-            x=alt.X("Score:Q"),
-            text=alt.Text("Score:Q")
-        )
-    )
+chart_df = view.copy()
 
-    st.altair_chart(bar + labels, use_container_width=True)
+# Ensure numeric
+chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
+
+# Create a combined label for the right edge
+chart_df["right_label"] = chart_df["player_name"] + "  (" + chart_df["Score"].astype(int).astype(str) + " pts, " + chart_df["Δ"].astype(str) + ")"
+
+# IMPORTANT: Sort by Rank (this is what makes it change every drop)
+y_sort = alt.SortField(field="Rank", order="ascending")
+
+bars = (
+    alt.Chart(chart_df)
+    .mark_bar(cornerRadiusEnd=4)
+    .encode(
+        y=alt.Y("player_name:N", sort=y_sort, title="", axis=alt.Axis(labels=False, ticks=False)),
+        x=alt.X("Score:Q", title="Points"),
+        color=alt.Color("player_name:N", legend=None),
+        tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+    )
+)
+
+# Name + score label at the RIGHT end of the bar
+name_labels = (
+    alt.Chart(chart_df)
+    .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+    .encode(
+        y=alt.Y("player_name:N", sort=y_sort),
+        x=alt.X("Score:Q"),
+        text=alt.Text("right_label:N")
+    )
+)
+
+# Small Δ label slightly inside the bar (optional but nice)
+delta_labels = (
+    alt.Chart(chart_df)
+    .mark_text(align="right", dx=-6, baseline="middle", fontSize=12, opacity=0.9)
+    .encode(
+        y=alt.Y("player_name:N", sort=y_sort),
+        x=alt.X("Score:Q"),
+        text=alt.Text("Δ:O")
+    )
+)
+
+st.altair_chart(bars + delta_labels + name_labels, use_container_width=True)
 
     scores_all = viz_df["Score"]
     st.caption(
@@ -1193,6 +1211,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
