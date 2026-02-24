@@ -961,15 +961,30 @@ with tabs[3]:
 
     chart_df = view.sort_values(["Score", "player_name"], ascending=[False, True]).copy()
 
-    bars = (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            y=alt.Y("player_name:N", sort="-x", title=""),
-            x=alt.X("Score:Q", title="Points"),
-            tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"],
-        )
+    # Create a stable colour mapping (based on final leaderboard order)
+    final_players = final_lb_raw.sort_values("rank")["player_name"].tolist()
+
+    color_scale = alt.Scale(
+      domain=final_players,
+      range=[
+        "#f5c542", "#00bcd4", "#ff7043", "#66bb6a", "#ab47bc",
+        "#42a5f5", "#ef5350", "#26c6da", "#ffca28", "#8d6e63",
+        "#78909c", "#7e57c2", "#ec407a", "#9ccc65", "#ffa726",
+        "#29b6f6", "#ff5252", "#26a69a", "#d4e157", "#ff8a65",
+        "#b39ddb", "#80cbc4", "#ffd54f", "#4dd0e1", "#ba68c8"
+      ][:len(final_players)]
     )
+
+    bars = (
+      alt.Chart(chart_df)
+      .mark_bar()
+      .encode(
+          y=alt.Y("player_name:N", sort="-x", title=""),
+          x=alt.X("Score:Q", title="Points"),
+          color=alt.Color("player_name:N", scale=color_scale, legend=None),
+          tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"]
+      )
+    ) 
 
     labels = (
         alt.Chart(chart_df)
@@ -1178,6 +1193,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
