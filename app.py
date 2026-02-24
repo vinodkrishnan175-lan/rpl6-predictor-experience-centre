@@ -512,7 +512,7 @@ with tabs[0]:
         )
     )
 
-    st._chart(bars + name_labels, use_container_width=True)
+    st.altair_chart(bars + name_labels, use_container_width=True)
 
     scores_all = viz_df["Score"]
     st.caption(
@@ -1203,6 +1203,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
