@@ -821,20 +821,32 @@ with tabs[3]:
     st.header("📈 Leaderboard Race — Replay Mode")
     st.caption("Move the slider or press Play to replay how the leaderboard changed after every drop.")
 
-    # -----------------------------
-    # Controls
-    # -----------------------------
-    max_drop = int(drop_master["drop"].max())
-    cA, cB, cC = st.columns([2, 1, 1])
+# -----------------------------
+# Controls
+# -----------------------------
+max_drop = int(drop_master["drop"].max())
 
-    with cA:
-        top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
+# Session state defaults
+if "race_drop" not in st.session_state:
+    st.session_state.race_drop = 1
+if "race_playing" not in st.session_state:
+    st.session_state.race_playing = False
 
-    with cB:
-        play = st.button("▶️ Play")
+cA, cB, cC = st.columns([2, 1, 1])
 
-    with cC:
-        speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
+with cA:
+    top_n = st.slider("Show Top N players", min_value=5, max_value=25, value=12, step=1)
+
+with cB:
+    if st.session_state.race_playing:
+        if st.button("⏸ Pause"):
+            st.session_state.race_playing = False
+    else:
+        if st.button("▶️ Play"):
+            st.session_state.race_playing = True
+
+with cC:
+    speed = st.selectbox("Speed", ["Slow", "Normal", "Fast"], index=1)
 
     speed_map = {"Slow": 0.8, "Normal": 0.35, "Fast": 0.15}
     delay = speed_map[speed]
@@ -853,29 +865,15 @@ with tabs[3]:
         scores = scores.sort_values(["Rank", "player_name"]).reset_index(drop=True)
         return scores
 
-    # -----------------------------
-    # Keep state for "Play"
-    # -----------------------------
-    if "race_drop" not in st.session_state:
-        st.session_state.race_drop = 1
-
-    # If user hits play, we increment automatically
-    if play:
-        # simple "replay loop": step forward each rerun
-        if st.session_state.race_drop < max_drop:
-            st.session_state.race_drop += 1
-        else:
-            st.session_state.race_drop = 1
-
     # Manual override slider (always allowed)
     current_drop = st.slider(
-        "Replay drop",
-        min_value=1,
-        max_value=max_drop,
-        value=int(st.session_state.race_drop),
-        step=1,
-        key="race_drop"
+    "Replay drop",
+    min_value=1,
+    max_value=max_drop,
+    value=int(st.session_state.race_drop),
+    step=1
     )
+    st.session_state.race_drop = current_drop
 
     # -----------------------------
     # Compute current + previous standings (for movement arrows)
@@ -987,11 +985,16 @@ with tabs[3]:
     st.dataframe(table, use_container_width=True, hide_index=True)
 
     # -----------------------------
-    # Auto-play effect (re-run)
+    # Auto-play engine
     # -----------------------------
-    if play:
-        import time
+    import time
+
+    if st.session_state.race_playing:
+      if st.session_state.race_drop >= max_drop:
+        st.session_state.race_playing = False  # stop at the end
+      else:
         time.sleep(delay)
+        st.session_state.race_drop += 1
         st.rerun()
 
 # =============================
@@ -1170,6 +1173,7 @@ with tabs[4]:
         )
         st.markdown(tile, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
