@@ -512,7 +512,7 @@ with tabs[0]:
         )
     )
 
-    st.altair_chart(bars + name_labels, use_container_width=True)
+    st._chart(bars + name_labels, use_container_width=True)
 
     scores_all = viz_df["Score"]
     st.caption(
@@ -1024,34 +1024,38 @@ st.altair_chart(bars + right_labels, use_container_width=True)
 # =============================
 with tabs[4]:
     st.header("📜 Answer Key")
-    st.caption("All drops + correct options + response stats (attempts, correct, power plays).")
+    st.caption("All drops + correct options + actuals + response stats (responses, correct, power plays).")
 
-    # ----- Build per-drop stats from merged -----
-    # merged columns used: drop, attempted, is_correct, power_play, player_name, question
-    # drop_master columns used: drop, question, correct_option, status
-
-    # Aggregate stats per drop (attempted, correct, PP used, PP success)
+    # -----------------------------
+    # Build per-drop stats from merged
+    # -----------------------------
+    # responses = attempted sum
+    # correct   = is_correct sum
+    # pp_used   = power_play sum
     drop_stats = (
         merged.groupby("drop", as_index=False)
         .agg(
             responses=("attempted", "sum"),
             correct=("is_correct", "sum"),
             pp_used=("power_play", "sum"),
-            pp_success=("power_play", lambda s: 0),  # placeholder, filled below
         )
     )
 
-    # Compute pp_success properly: PP used AND correct
+    # pp_success = (power_play == 1 AND is_correct == 1)
     pp_success_df = (
         merged.assign(pp_success_row=((merged["power_play"] == 1) & (merged["is_correct"] == 1)).astype(int))
         .groupby("drop", as_index=False)
         .agg(pp_success=("pp_success_row", "sum"))
     )
 
-    drop_stats = drop_stats.drop(columns=["pp_success"]).merge(pp_success_df, on="drop", how="left")
+    # merge stats together
+    drop_stats = drop_stats.merge(pp_success_df, on="drop", how="left")
     drop_stats["pp_success"] = drop_stats["pp_success"].fillna(0).astype(int)
 
-    # Join with drop master (ensures we show ALL drops incl scrapped/calculated)
+    # -----------------------------
+    # Join with drop_master (show ALL drops)
+    # -----------------------------
+    # NOTE: assumes drop_master has columns: drop, question, correct_option, actuals, status
     ak = (
         drop_master[["drop", "question", "correct_option", "actuals", "status"]]
         .merge(drop_stats, on="drop", how="left")
@@ -1059,104 +1063,111 @@ with tabs[4]:
         .copy()
     )
 
-    # Fill blanks for drops that have no merged rows (shouldn't happen, but safe)
+    # fill blanks (if a drop has no rows in merged)
     for col in ["responses", "correct", "pp_used", "pp_success"]:
         ak[col] = ak[col].fillna(0).astype(int)
 
-    # ----- Compact grid CSS -----
-    st.markdown("""
-    <style>
-      /* Force 3 columns on desktop */
-      .ak-grid{
-        display:grid;
-        grid-template-columns: repeat(3, minmax(260px, 1fr));
-        gap: 14px;
-        margin-top: 12px;
-      }
+    # -----------------------------
+    # CSS
+    # -----------------------------
+    st.markdown(
+        """
+        <style>
+          .ak-grid{
+            display:grid;
+            grid-template-columns: repeat(3, minmax(260px, 1fr));
+            gap: 14px;
+            margin-top: 12px;
+          }
+          @media (max-width: 1100px){
+            .ak-grid{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+          }
+          @media (max-width: 700px){
+            .ak-grid{ grid-template-columns: 1fr; }
+          }
 
-      /* 2 columns on medium screens */
-      @media (max-width: 1100px){
-        .ak-grid{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-      }
+          .ak-tile{
+            border-radius: 16px;
+            padding: 14px 14px 12px 14px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            box-shadow: 0 12px 26px rgba(0,0,0,0.38);
+            min-height: 190px;
+          }
 
-      /* 1 column on mobile */
-      @media (max-width: 700px){
-        .ak-grid{ grid-template-columns: 1fr; }
-      }
+          .ak-tile.scrapped{
+            border-color: rgba(255,110,110,0.70);
+            background: linear-gradient(180deg, rgba(255,70,70,0.35), rgba(255,70,70,0.12));
+          }
 
-      .ak-tile{
-        border-radius: 16px;
-        padding: 14px 14px 12px 14px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-        box-shadow: 0 12px 26px rgba(0,0,0,0.38);
-        min-height: 170px;
-      }
+          .ak-drop{
+            font-weight: 950;
+            font-size: 18px;
+            color: #f5c542;
+            letter-spacing: 0.04em;
+          }
 
-      /* Scrapped tile – full red */
-      .ak-tile.scrapped{
-        border-color: rgba(255,110,110,0.60);
-        background: linear-gradient(180deg, rgba(255,90,90,0.32), rgba(255,90,90,0.12));
-      }
+          .ak-q{
+            font-size: 14px;
+            opacity: 0.95;
+            line-height: 1.3;
+            margin: 8px 0 10px 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 54px;
+          }
 
-      .ak-drop{
-        font-weight: 950;
-        font-size: 18px;
-        color: #f5c542;
-        letter-spacing: 0.04em;
-      }
+          .ak-pill{
+            display:inline-block;
+            margin: 2px 8px 10px 0;
+            font-weight: 900;
+            font-size: 14px;
+            padding: 7px 10px;
+            border-radius: 11px;
+            background: rgba(245,197,66,0.10);
+            border: 1px solid rgba(245,197,66,0.22);
+          }
 
-      .ak-q{
-        font-size: 14px;
-        opacity: 0.95;
-        line-height: 1.3;
-        margin: 8px 0 10px 0;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        min-height: 54px;
-      }
+          .ak-pill.actual{
+            background: rgba(120,200,255,0.08);
+            border: 1px solid rgba(120,200,255,0.18);
+          }
 
-      .ak-ans{
-        display:inline-block;
-        margin: 2px 0 10px 0;
-        font-weight: 900;
-        font-size: 15px;
-        padding: 7px 10px;
-        border-radius: 11px;
-        background: rgba(245,197,66,0.10);
-        border: 1px solid rgba(245,197,66,0.22);
-      }
+          .ak-metrics{
+            display:flex;
+            justify-content:space-between;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 14px;
+            opacity: 0.95;
+          }
+          .ak-pair{
+            display:flex;
+            gap: 10px;
+            align-items:baseline;
+            flex-wrap: wrap;
+          }
+          .ak-pair b{ font-weight: 950; }
+          .ak-ppgood{ color:#ffd88a; font-weight: 900; }
+          .ak-scraplabel{ color:#ffe1e1; font-weight: 950; margin: 2px 0 6px 0; }
+          .ak-sep{ opacity:0.7; padding: 0 6px; }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-      .ak-metrics{
-        display:flex;
-        justify-content:space-between;
-        gap: 12px;
-        margin-top: 8px;
-        font-size: 14px;
-        opacity: 0.95;
-      }
-      .ak-pair{
-        display:flex;
-        gap: 10px;
-        align-items:baseline;
-      }
-      .ak-pair b{ font-weight: 950; }
-      .ak-ppgood{ color:#ffd88a; font-weight: 900; }
-      .ak-scraplabel{ color:#ffd1d1; font-weight: 950; }
-      .ak-sep{ opacity:0.7; padding: 0 6px; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # ----- Render tiles -----
+    # -----------------------------
+    # Render tiles
+    # -----------------------------
     st.markdown('<div class="ak-grid">', unsafe_allow_html=True)
 
     for _, r in ak.iterrows():
         d = int(r["drop"])
         q = str(r["question"])
         ans = str(r["correct_option"])
-        actuals = str(r.get("actuals", "")).strip()
+        actuals = "" if pd.isna(r["actuals"]) else str(r["actuals"]).strip()
         status = str(r["status"]).lower()
 
         responses = int(r["responses"])
@@ -1164,21 +1175,21 @@ with tabs[4]:
         pp_used = int(r["pp_used"])
         pp_success = int(r["pp_success"])
 
-        # Scrapped styling only for scrapped drops (drop 12)
         tile_class = "ak-tile scrapped" if status == "scrapped" else "ak-tile"
+        scrap_line = '<div class="ak-scraplabel">🗑️ SCRAPPED DROP</div>' if status == "scrapped" else ""
 
-        scrap_line = ""
-        if status == "scrapped":
-            scrap_line = '<div class="ak-scraplabel">🗑️ SCRAPPED DROP</div>'
-        tile = (
+        # If actuals empty, show a dash
+        actual_text = actuals if actuals else "—"
+
+        tile_html = (
             f'<div class="{tile_class}">'
-            f'  <div style="display:flex;justify-content:space-between;align-items:flex-start;">'
-            f'    <div class="ak-drop">Drop {d}</div>'
-            f'  </div>'
+            f'  <div class="ak-drop">Drop {d}</div>'
             f'  {scrap_line}'
             f'  <div class="ak-q">{q}</div>'
-            f'  <div class="ak-ans">Answer: {ans}</div>'
-            f'  <div class="ak-ans">Actual: {actuals}</div>'
+            f'  <div>'
+            f'    <span class="ak-pill">Answer: {ans}</span>'
+            f'    <span class="ak-pill actual">Actual: {actual_text}</span>'
+            f'  </div>'
             f'  <div class="ak-metrics">'
             f'    <div class="ak-pair">'
             f'      <span>Responses:</span><b>{responses}</b>'
@@ -1193,9 +1204,10 @@ with tabs[4]:
             f'  </div>'
             f'</div>'
         )
-        st.markdown(tile, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown(tile_html, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
