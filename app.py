@@ -478,83 +478,83 @@ with tabs[0]:
 st.markdown("### 🏆 Podium")
 
 # CSS for podium cards
-st.markdown("""
-<style>
-  .podium-row{
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin: 8px 0 10px 0;
-  }
-  .pod{
-    border-radius: 16px;
-    padding: 12px 14px;
-    border: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 12px 26px rgba(0,0,0,0.40);
-    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-    min-height: 108px;
-  }
-  .pod.gold{
-    border-color: rgba(245,197,66,0.45);
-    background: radial-gradient(circle at 18% 0%, rgba(245,197,66,0.25), rgba(0,0,0,0) 55%),
+    st.markdown("""
+    <style>
+      .podium-row{
+        display:grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin: 8px 0 10px 0;
+      }
+      .pod{
+        border-radius: 16px;
+        padding: 12px 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 12px 26px rgba(0,0,0,0.40);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+        min-height: 108px;
+      }
+      .pod.gold{
+        border-color: rgba(245,197,66,0.45);
+        background: radial-gradient(circle at 18% 0%, rgba(245,197,66,0.25), rgba(0,0,0,0) 55%),
                 linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-    box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
-                0 0 26px rgba(245,197,66,0.18),
-                0 16px 34px rgba(0,0,0,0.45);
-  }
-  .pod.silver{
-    border-color: rgba(200,200,200,0.38);
-    background: radial-gradient(circle at 18% 0%, rgba(200,200,200,0.18), rgba(0,0,0,0) 55%),
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-  }
-  .pod.bronze{
-    border-color: rgba(205,127,50,0.48);
-    background: radial-gradient(circle at 18% 0%, rgba(205,127,50,0.20), rgba(0,0,0,0) 55%),
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-  }
-  .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
-  .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
-  .pod-pts{ font-weight: 950; }
-  @media (max-width: 900px){
-    .podium-row{ grid-template-columns: 1fr; }
-  }
-</style>
-""", unsafe_allow_html=True)
+        box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
+                    0 0 26px rgba(245,197,66,0.18),
+                    0 16px 34px rgba(0,0,0,0.45);
+      }
+      .pod.silver{
+        border-color: rgba(200,200,200,0.38);
+        background: radial-gradient(circle at 18% 0%, rgba(200,200,200,0.18), rgba(0,0,0,0) 55%),
+                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      }
+      .pod.bronze{
+        border-color: rgba(205,127,50,0.48);
+        background: radial-gradient(circle at 18% 0%, rgba(205,127,50,0.20), rgba(0,0,0,0) 55%),
+                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      }
+      .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
+      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
+      .pod-pts{ font-weight: 950; }
+      @media (max-width: 900px){
+        .podium-row{ grid-template-columns: 1fr; }
+      }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Use your existing final_lb (display table) as source for podium
-podium_df = final_lb.copy()
-podium_df["Score"] = pd.to_numeric(podium_df["Score"], errors="coerce").fillna(0)
+    # Use your existing final_lb (display table) as source for podium
+    podium_df = final_lb.copy()
+    podium_df["Score"] = pd.to_numeric(podium_df["Score"], errors="coerce").fillna(0)
 
-champ_df  = podium_df[podium_df["Rank"] == 1][["Name", "Score"]]
-runner_df = podium_df[podium_df["Rank"] == 2][["Name", "Score"]]
-third_df  = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
+    champ_df  = podium_df[podium_df["Rank"] == 1][["Name", "Score"]]
+    runner_df = podium_df[podium_df["Rank"] == 2][["Name", "Score"]]
+    third_df  = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
 
-def render_lines(df):
-    if df.empty:
-        return '<div style="opacity:0.7">—</div>'
-    html = ""
-    for _, r in df.iterrows():
-        html += f'<div class="pod-line"><span>{r["Name"]}</span><span class="pod-pts">{int(r["Score"])} pts</span></div>'
-    return html
+    def render_lines(df):
+        if df.empty:
+            return '<div style="opacity:0.7">—</div>'
+        html = ""
+        for _, r in df.iterrows():
+            html += f'<div class="pod-line"><span>{r["Name"]}</span><span class="pod-pts">{int(r["Score"])} pts</span></div>'
+        return html
 
-st.markdown(f"""
-  <div class="podium-row">
-    <div class="pod gold">
-      <div class="pod-title">🥇 CHAMPION</div>
-      {render_lines(champ_df)}
-    </div>
-    <div class="pod silver">
-      <div class="pod-title">🥈 RUNNER-UP</div>
-      {render_lines(runner_df)}
-    </div>
-    <div class="pod bronze">
-      <div class="pod-title">🥉 THIRD PLACE</div>
-      {render_lines(third_df)}
-    </div>
-  </div>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+      <div class="podium-row">
+        <div class="pod gold">
+          <div class="pod-title">🥇 CHAMPION</div>
+          {render_lines(champ_df)}
+        </div>
+        <div class="pod silver">
+          <div class="pod-title">🥈 RUNNER-UP</div>
+          {render_lines(runner_df)}
+        </div>
+        <div class="pod bronze">
+          <div class="pod-title">🥉 THIRD PLACE</div>
+          {render_lines(third_df)}
+        </div>
+      </div>
+    """, unsafe_allow_html=True)
 
-st.divider()
+    st.divider()
   
     # -----------------------------
     # PP / Attendance tiles row (labels start with counts)
@@ -1300,6 +1300,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
