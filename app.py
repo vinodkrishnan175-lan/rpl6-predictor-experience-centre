@@ -345,8 +345,9 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 # Overview
 # =============================
 with tabs[0]:
-  
     st.header("🏁 Season Overview")
+
+    import altair as alt
 
     # -----------------------------
     # Season summary tiles
@@ -355,7 +356,7 @@ with tabs[0]:
     active_count = len(active_set)
     total_predictions = int(merged["attempted"].sum())
     total_pp_used = int(merged["power_play"].sum())
-    total_drops = int(drop_master["drop"].nunique())  # should be 38
+    total_drops = int(drop_master["drop"].nunique())  # 38 (includes scrapped)
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Participants", total_participants)
@@ -367,59 +368,134 @@ with tabs[0]:
     st.divider()
 
     # -----------------------------
-    # Season Headlines (extra tiles)
+    # Season highlight tiles (6 tiles)
     # -----------------------------
-    valid_ds = drop_stats_df[drop_stats_df["status"] == "valid"].copy()
+    # Use drop_stats_df that you already build in build_models()
+    # Columns expected in drop_stats_df: drop, question, status, attempted, correct, accuracy_pct, pp_used, pp_correct
+    ds_all = drop_stats_df.copy()
+    ds_all["pp_fail"] = (ds_all["pp_used"] - ds_all["pp_correct"]).astype(int)
 
-    # responses extremes
-    max_resp_row = valid_ds.sort_values(["attempted", "drop"], ascending=[False, True]).iloc[0]
-    min_resp_row = valid_ds.sort_values(["attempted", "drop"], ascending=[True, True]).iloc[0]
+    # For "toughest/easiest", consider VALID only
+    ds_valid = ds_all[ds_all["status"] == "valid"].copy()
 
-    # PP success/fail extremes
-    valid_ds["pp_failed"] = valid_ds["pp_used"] - valid_ds["pp_correct"]
-    max_pp_succ_row = valid_ds.sort_values(["pp_correct", "drop"], ascending=[False, True]).iloc[0]
-    max_pp_fail_row = valid_ds.sort_values(["pp_failed", "drop"], ascending=[False, True]).iloc[0]
+    # max/min responses (attempted)
+    max_resp_row = ds_all.sort_values(["attempted", "drop"], ascending=[False, True]).iloc[0]
+    min_resp_row = ds_all.sort_values(["attempted", "drop"], ascending=[True, True]).iloc[0]
 
-    # toughest/easiest by accuracy
-    toughest_row = valid_ds.sort_values(["accuracy_pct", "attempted", "drop"], ascending=[True, False, True]).iloc[0]
-    easiest_row = valid_ds.sort_values(["accuracy_pct", "attempted", "drop"], ascending=[False, False, True]).iloc[0]
+    # PP success/fail
+    max_pp_hit_row = ds_all.sort_values(["pp_correct", "drop"], ascending=[False, True]).iloc[0]
+    max_pp_fail_row = ds_all.sort_values(["pp_fail", "drop"], ascending=[False, True]).iloc[0]
 
-    h1, h2, h3 = st.columns(3)
-    h1.metric("📣 Max responses", f"Drop {int(max_resp_row['drop'])}", f"{int(max_resp_row['attempted'])} responses")
-    h2.metric("🥶 Min responses", f"Drop {int(min_resp_row['drop'])}", f"{int(min_resp_row['attempted'])} responses")
-    h3.metric("🔥 Max PP success", f"Drop {int(max_pp_succ_row['drop'])}", f"{int(max_pp_succ_row['pp_correct'])} PP hits")
+    # toughest/easiest (by accuracy, tie-breaker: higher attempted)
+    toughest_row = ds_valid.sort_values(["accuracy_pct", "attempted"], ascending=[True, False]).iloc[0]
+    easiest_row = ds_valid.sort_values(["accuracy_pct", "attempted"], ascending=[False, False]).iloc[0]
 
-    h4, h5, h6 = st.columns(3)
-    h4.metric("💥 Most PP fails", f"Drop {int(max_pp_fail_row['drop'])}", f"{int(max_pp_fail_row['pp_failed'])} PP fails")
-    h5.metric("🧱 Toughest drop", f"Drop {int(toughest_row['drop'])}", f"{safe_pct(float(toughest_row['accuracy_pct']))} correct")
-    h6.metric("🎯 Easiest drop", f"Drop {int(easiest_row['drop'])}", f"{safe_pct(float(easiest_row['accuracy_pct']))} correct")
+    # Small helper to clamp long question text in cards
+    def _card_html(title, big_text, badge_text):
+        return f"""
+        <div style="
+          border-radius: 18px;
+          padding: 14px 16px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+          box-shadow: 0 12px 26px rgba(0,0,0,0.38);
+          min-height: 150px;
+        ">
+          <div style="opacity:0.90;font-weight:800;font-size:14px;margin-bottom:8px;">{title}</div>
+          <div style="
+            font-weight:950;
+            font-size:20px;
+            line-height:1.2;
+            margin-bottom:10px;
+            display:-webkit-box;
+            -webkit-line-clamp:3;
+            -webkit-box-orient:vertical;
+            overflow:hidden;
+            min-height:72px;
+          ">{big_text}</div>
+          <div style="
+            display:inline-block;
+            padding:6px 10px;
+            border-radius:999px;
+            background: rgba(0,200,120,0.16);
+            border: 1px solid rgba(0,200,120,0.28);
+            font-weight:900;
+            color: rgba(140,255,200,0.98);
+          ">{badge_text}</div>
+        </div>
+        """
+
+    r1a, r1b, r1c = st.columns(3)
+    r2a, r2b, r2c = st.columns(3)
+
+    with r1a:
+        st.markdown(_card_html(
+            "✍️ Max responses",
+            str(max_resp_row["question"]),
+            f"{int(max_resp_row['attempted'])} responses"
+        ), unsafe_allow_html=True)
+
+    with r1b:
+        st.markdown(_card_html(
+            "🧊 Min responses",
+            str(min_resp_row["question"]),
+            f"{int(min_resp_row['attempted'])} responses"
+        ), unsafe_allow_html=True)
+
+    with r1c:
+        st.markdown(_card_html(
+            "🔥 Max PP success",
+            str(max_pp_hit_row["question"]),
+            f"{int(max_pp_hit_row['pp_correct'])} PP hits"
+        ), unsafe_allow_html=True)
+
+    with r2a:
+        st.markdown(_card_html(
+            "💥 Most PP fails",
+            str(max_pp_fail_row["question"]),
+            f"{int(max_pp_fail_row['pp_fail'])} PP fails"
+        ), unsafe_allow_html=True)
+
+    with r2b:
+        st.markdown(_card_html(
+            "🥵 Toughest drop",
+            str(toughest_row["question"]),
+            f"{int(toughest_row['correct'])}/{int(toughest_row['attempted'])} correct • {safe_pct(float(toughest_row['accuracy_pct']))}"
+        ), unsafe_allow_html=True)
+
+    with r2c:
+        st.markdown(_card_html(
+            "🎯 Easiest drop",
+            str(easiest_row["question"]),
+            f"{int(easiest_row['correct'])}/{int(easiest_row['attempted'])} correct • {safe_pct(float(easiest_row['accuracy_pct']))}"
+        ), unsafe_allow_html=True)
 
     st.divider()
-  
+
     # -----------------------------
-    # PP / Attendance tiles row
+    # PP / Attendance tiles row (labels start with counts)
     # -----------------------------
     a, b, c = st.columns(3)
 
     with a:
-        st.metric("Both PP correct", len(both_pp_correct_names))
+        st.metric(f"{len(both_pp_correct_names)} players got BOTH PP correct", len(both_pp_correct_names))
         with st.popover("View names"):
             st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
 
     with b:
-        st.metric("Both PP wrong", len(both_pp_wrong_names))
+        st.metric(f"{len(both_pp_wrong_names)} players got BOTH PP wrong", len(both_pp_wrong_names))
         with st.popover("View names"):
             st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     with c:
-        st.metric("100% attendance", len(full_attendance_list))
+        st.metric(f"{len(full_attendance_list)} players had 100% attendance", len(full_attendance_list))
         with st.popover("View names"):
             st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
 
     st.divider()
 
     # -----------------------------
-    # Full Leaderboard + Awards + Chart
+    # Full Leaderboard + chart (always visible)
     # -----------------------------
     st.subheader("Full Leaderboard")
 
@@ -428,105 +504,26 @@ with tabs[0]:
     viz_df["Score"] = pd.to_numeric(viz_df["Score"], errors="coerce").fillna(0)
     viz_df = viz_df.sort_values(["Score", "Name"], ascending=[False, True]).reset_index(drop=True)
 
-    # ===== Awards Podium CSS =====
-    st.markdown("""
-    <style>
-      .podium-row{
-        display:grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
-        margin: 8px 0 10px 0;
-      }
-      .pod{
-        border-radius: 16px;
-        padding: 12px 14px;
-        border: 1px solid rgba(255,255,255,0.10);
-        box-shadow: 0 12px 26px rgba(0,0,0,0.40);
-        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-        min-height: 108px;
-      }
-      .pod.gold{
-        border-color: rgba(245,197,66,0.45);
-        background: radial-gradient(circle at 18% 0%, rgba(245,197,66,0.25), rgba(0,0,0,0) 55%),
-                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-        box-shadow: 0 0 0 1px rgba(245,197,66,0.20),
-                    0 0 26px rgba(245,197,66,0.18),
-                    0 16px 34px rgba(0,0,0,0.45);
-      }
-      .pod.silver{
-        border-color: rgba(200,200,200,0.38);
-        background: radial-gradient(circle at 18% 0%, rgba(200,200,200,0.18), rgba(0,0,0,0) 55%),
-                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-      }
-      .pod.bronze{
-        border-color: rgba(205,127,50,0.48);
-        background: radial-gradient(circle at 18% 0%, rgba(205,127,50,0.20), rgba(0,0,0,0) 55%),
-                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-      }
-      .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
-      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
-      .pod-pts{ font-weight: 950; }
-      @media (max-width: 900px){
-        .podium-row{ grid-template-columns: 1fr; }
-      }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Podium groups (ties handled because Rank already exists in final_lb)
-    podium_df = viz_df.copy()
-    gold_df = podium_df[podium_df["Rank"] == 1][["Name", "Score"]]
-    silver_df = podium_df[podium_df["Rank"] == 2][["Name", "Score"]]
-    bronze_df = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
-
-    def render_lines(df):
-        if df.empty:
-            return '<div style="opacity:0.7">—</div>'
-        html = ""
-        for _, r in df.iterrows():
-            html += f'<div class="pod-line"><span>{r["Name"]}</span><span class="pod-pts">{int(r["Score"])} pts</span></div>'
-        return html
-
-    st.markdown(f"""
-      <div class="podium-row">
-        <div class="pod gold">
-          <div class="pod-title">🥇 CHAMPION</div>
-          {render_lines(gold_df)}
-        </div>
-        <div class="pod silver">
-          <div class="pod-title">🥈 RUNNERS-UP</div>
-          {render_lines(silver_df)}
-        </div>
-        <div class="pod bronze">
-          <div class="pod-title">🥉 THIRD PLACE</div>
-          {render_lines(bronze_df)}
-        </div>
-      </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-
-    # ===== Leaderboard bar chart (with names at the right end) =====
+    # ===== Leaderboard bar chart (FIX: show y-axis names) =====
     st.caption("Leaderboard visual (Top N by score). Use the slider to expand the field.")
     top_n = st.slider("Show Top N", min_value=10, max_value=25, value=15, step=1, key="lb_topn")
 
     chart_df = viz_df.head(top_n).copy()
-    chart_df["right_label"] = (
-        chart_df["Name"]
-        + "  ("
-        + chart_df["Score"].astype(int).astype(str)
-        + " pts)"
-    )
+    chart_df["right_label"] = chart_df["Name"] + "  (" + chart_df["Score"].astype(int).astype(str) + " pts)"
 
-    import altair as alt
-
-    # Sort Y by Rank so order is stable and intuitive
+    # IMPORTANT: do NOT hide y labels
     y_sort = alt.SortField(field="Rank", order="ascending")
 
     bars = (
         alt.Chart(chart_df)
         .mark_bar(cornerRadiusEnd=4)
         .encode(
-            y=alt.Y("Name:N", sort=y_sort, title="", axis=alt.Axis(title=None, labelLimit=260, labelFontSize=12)),
+            y=alt.Y(
+                "Name:N",
+                sort=y_sort,
+                title="",
+                axis=alt.Axis(labelLimit=240, labelFontSize=12)  # shows names cleanly
+            ),
             x=alt.X("Score:Q", title="Points"),
             color=alt.Color("Name:N", legend=None),
             tooltip=["Rank:Q", "Name:N", "Score:Q"]
@@ -535,7 +532,7 @@ with tabs[0]:
 
     name_labels = (
         alt.Chart(chart_df)
-        .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+        .mark_text(align="left", dx=8, baseline="middle", fontSize=12)
         .encode(
             y=alt.Y("Name:N", sort=y_sort),
             x=alt.X("Score:Q"),
@@ -553,121 +550,119 @@ with tabs[0]:
         f"Lowest: {scores_all.min():.0f}"
     )
 
-    # Full leaderboard table
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
 
-    st.divider()
+    # -----------------------------
+    # Everything below: collapsible (REAL fix)
+    # -----------------------------
+    with st.expander("📦 Deep dive (Hardest/Easiest/Unsolved) — expand/collapse", expanded=False):
 
-    # -------------------------
-    # Hardest drops
-    # -------------------------
-    st.subheader("Hardest Drops (Questions only)")
-    st.caption("Hardest = lowest % correct among attempted responses.")
+        st.divider()
 
-    hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
-    hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
+        # -------------------------
+        # Hardest drops
+        # -------------------------
+        st.subheader("Hardest Drops (Questions only)")
+        st.caption("Hardest = lowest % correct among attempted responses (valid drops only).")
 
-    st.dataframe(
-        hd_view.rename(columns={
-            "drop": "Drop",
-            "question": "Question",
-            "accuracy_pct": "% Correct",
-            "attempted": "Attempted",
-            "correct": "Correct"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
+        hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+        hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
 
-    st.markdown("#### Players who got the hardest drops right (PP used called out)")
-    for _, r in hardest_df.iterrows():
-        d = int(r["drop"])
-        subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
-        names = sorted(subset["player_name"].unique().tolist())
-
-        pp_used_names = sorted(
-            merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
-            .unique().tolist()
+        st.dataframe(
+            hd_view.rename(columns={
+                "drop": "Drop",
+                "question": "Question",
+                "accuracy_pct": "% Correct",
+                "attempted": "Attempted",
+                "correct": "Correct"
+            }),
+            use_container_width=True,
+            hide_index=True
         )
 
-        st.markdown('<div class="qa-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
-            unsafe_allow_html=True
+        for _, r in hardest_df.iterrows():
+            d = int(r["drop"])
+            subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+            names = sorted(subset["player_name"].unique().tolist())
+
+            pp_used_names = sorted(
+                merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+                .unique().tolist()
+            )
+
+            st.markdown('<div class="qa-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+                unsafe_allow_html=True
+            )
+            if pp_used_names:
+                st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+            else:
+                st.write("🧊 No players used Power Play for this question.")
+            st.write(", ".join(names) if names else "No one got this right.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+
+        # -------------------------
+        # Easiest drops
+        # -------------------------
+        st.subheader("Easiest Drops (Questions only)")
+        st.caption("Easiest = highest % correct among attempted responses (valid drops only).")
+
+        ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+        ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
+
+        st.dataframe(
+            ez_view.rename(columns={
+                "drop": "Drop",
+                "question": "Question",
+                "accuracy_pct": "% Correct",
+                "attempted": "Attempted",
+                "correct": "Correct"
+            }),
+            use_container_width=True,
+            hide_index=True
         )
 
-        if pp_used_names:
-            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+        for _, r in easiest_df.iterrows():
+            d = int(r["drop"])
+            subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+            names = sorted(subset["player_name"].unique().tolist())
+
+            pp_used_names = sorted(
+                merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+                .unique().tolist()
+            )
+
+            st.markdown('<div class="qa-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+                unsafe_allow_html=True
+            )
+            if pp_used_names:
+                st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+            else:
+                st.write("🧊 No players used Power Play for this question.")
+            st.write(", ".join(names) if names else "No responses.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+
+        # -------------------------
+        # Unsolved drops
+        # -------------------------
+        st.subheader("Unsolved Drops (0 correct)")
+        if len(unsolved_df) == 0:
+            st.write("None — every question had at least one correct answer.")
         else:
-            st.write("🧊 No players used Power Play for this question.")
-
-        st.write(", ".join(names) if names else "No one got this right.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.divider()
-
-    # -------------------------
-    # Easiest drops
-    # -------------------------
-    st.subheader("Easiest Drops (Questions only)")
-    st.caption("Easiest = highest % correct among attempted responses.")
-
-    ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
-    ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
-
-    st.dataframe(
-        ez_view.rename(columns={
-            "drop": "Drop",
-            "question": "Question",
-            "accuracy_pct": "% Correct",
-            "attempted": "Attempted",
-            "correct": "Correct"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.markdown("#### Players who got the easiest drops right (PP used called out)")
-    for _, r in easiest_df.iterrows():
-        d = int(r["drop"])
-        subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
-        names = sorted(subset["player_name"].unique().tolist())
-
-        pp_used_names = sorted(
-            merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
-            .unique().tolist()
-        )
-
-        st.markdown('<div class="qa-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
-            unsafe_allow_html=True
-        )
-
-        if pp_used_names:
-            st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
-        else:
-            st.write("🧊 No players used Power Play for this question.")
-
-        st.write(", ".join(names) if names else "No responses.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.divider()
-
-    # -------------------------
-    # Unsolved drops
-    # -------------------------
-    st.subheader("Unsolved Drops (0 correct)")
-    if len(unsolved_df) == 0:
-        st.write("None — every question had at least one correct answer.")
-    else:
-        for _, r in unsolved_df.iterrows():
-            st.markdown(f"**Drop {int(r['drop'])}** — {r['question']}")
-            st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0")
-            st.write(f"✅ Correct option: **{r['correct_option']}**")
-            st.write("")
+            for _, r in unsolved_df.iterrows():
+                st.markdown(f"**Drop {int(r['drop'])}** — {r['question']}")
+                st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0")
+                st.write(f"✅ Correct option: **{r['correct_option']}**")
+                st.write("")
           
 with tabs[1]:
     st.header("🎯 Drop Explorer")
@@ -1221,6 +1216,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
