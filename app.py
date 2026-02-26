@@ -345,6 +345,7 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 # Overview
 # =============================
 with tabs[0]:
+  
     st.header("🏁 Season Overview")
 
     # -----------------------------
@@ -365,6 +366,36 @@ with tabs[0]:
 
     st.divider()
 
+    # -----------------------------
+    # Season Headlines (extra tiles)
+    # -----------------------------
+    valid_ds = drop_stats_df[drop_stats_df["status"] == "valid"].copy()
+
+    # responses extremes
+    max_resp_row = valid_ds.sort_values(["attempted", "drop"], ascending=[False, True]).iloc[0]
+    min_resp_row = valid_ds.sort_values(["attempted", "drop"], ascending=[True, True]).iloc[0]
+
+    # PP success/fail extremes
+    valid_ds["pp_failed"] = valid_ds["pp_used"] - valid_ds["pp_correct"]
+    max_pp_succ_row = valid_ds.sort_values(["pp_correct", "drop"], ascending=[False, True]).iloc[0]
+    max_pp_fail_row = valid_ds.sort_values(["pp_failed", "drop"], ascending=[False, True]).iloc[0]
+
+    # toughest/easiest by accuracy
+    toughest_row = valid_ds.sort_values(["accuracy_pct", "attempted", "drop"], ascending=[True, False, True]).iloc[0]
+    easiest_row = valid_ds.sort_values(["accuracy_pct", "attempted", "drop"], ascending=[False, False, True]).iloc[0]
+
+    h1, h2, h3 = st.columns(3)
+    h1.metric("📣 Max responses", f"Drop {int(max_resp_row['drop'])}", f"{int(max_resp_row['attempted'])} responses")
+    h2.metric("🥶 Min responses", f"Drop {int(min_resp_row['drop'])}", f"{int(min_resp_row['attempted'])} responses")
+    h3.metric("🔥 Max PP success", f"Drop {int(max_pp_succ_row['drop'])}", f"{int(max_pp_succ_row['pp_correct'])} PP hits")
+
+    h4, h5, h6 = st.columns(3)
+    h4.metric("💥 Most PP fails", f"Drop {int(max_pp_fail_row['drop'])}", f"{int(max_pp_fail_row['pp_failed'])} PP fails")
+    h5.metric("🧱 Toughest drop", f"Drop {int(toughest_row['drop'])}", f"{safe_pct(float(toughest_row['accuracy_pct']))} correct")
+    h6.metric("🎯 Easiest drop", f"Drop {int(easiest_row['drop'])}", f"{safe_pct(float(easiest_row['accuracy_pct']))} correct")
+
+    st.divider()
+  
     # -----------------------------
     # PP / Attendance tiles row
     # -----------------------------
@@ -1190,6 +1221,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
