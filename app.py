@@ -430,7 +430,7 @@ with tabs[0]:
 
     with r1a:
         st.markdown(_card_html(
-            "✍️ Max responses",
+            "✍️ Drop with the most responses",
             str(max_resp_row["question"]),
             f"{int(max_resp_row['attempted'])} responses"
         ), unsafe_allow_html=True)
@@ -1216,6 +1216,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
