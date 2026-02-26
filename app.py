@@ -524,36 +524,7 @@ with tabs[0]:
 
     # Full leaderboard table
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
-
-    with st.expander("📦 Deep-dive: Hardest / Easiest / Unsolved", expanded=False):
-
-        st.divider()
-
-        # -------------------------
-        # Hardest drops
-        # -------------------------
-        st.subheader("Hardest Drops (Questions only)")
-        ...
-        # (keep your hardest code as-is)
-
-        st.divider()
-
-        # -------------------------
-        # Easiest drops
-        # -------------------------
-        st.subheader("Easiest Drops (Questions only)")
-        ...
-        # (keep your easiest code as-is)
-
-        st.divider()
-
-        # -------------------------
-        # Unsolved drops
-        # -------------------------
-        st.subheader("Unsolved Drops (0 correct)")
-        ...
-        # (keep your unsolved code as-is)
-  
+ 
     st.divider()
 
     # -------------------------
@@ -1219,6 +1190,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
