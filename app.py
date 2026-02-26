@@ -462,7 +462,30 @@ with tabs[0]:
 
     st.divider()
 
+    
     # -----------------------------
+    # PP / Attendance tiles row
+    # -----------------------------
+    a, b, c = st.columns(3)
+
+    with a:
+        st.metric(f"{len(both_pp_correct_names)} players got BOTH PP correct", len(both_pp_correct_names))
+        with st.popover("View names"):
+            st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+
+    with b:
+        st.metric(f"{len(both_pp_wrong_names)} players got BOTH PP wrong", len(both_pp_wrong_names))
+        with st.popover("View names"):
+            st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+
+    with c:
+        st.metric(f"{len(full_attendance_list)} players had 100% attendance", len(full_attendance_list))
+        with st.popover("View names"):
+            st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
+
+    st.divider()
+
+# -----------------------------
     # Podium (Champion / Runner-up / Third place)
     # -----------------------------
     st.markdown("### 🏆 Podium")
@@ -544,28 +567,7 @@ with tabs[0]:
 
     st.divider()
 
-    # -----------------------------
-    # PP / Attendance tiles row
-    # -----------------------------
-    a, b, c = st.columns(3)
-
-    with a:
-        st.metric(f"{len(both_pp_correct_names)} players got BOTH PP correct", len(both_pp_correct_names))
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
-
-    with b:
-        st.metric(f"{len(both_pp_wrong_names)} players got BOTH PP wrong", len(both_pp_wrong_names))
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
-
-    with c:
-        st.metric(f"{len(full_attendance_list)} players had 100% attendance", len(full_attendance_list))
-        with st.popover("View names"):
-            st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
-
-    st.divider()
-
+  
     # -----------------------------
     # Full Leaderboard + chart
     # -----------------------------
@@ -1225,6 +1227,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
