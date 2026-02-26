@@ -495,7 +495,7 @@ with tabs[0]:
         alt.Chart(chart_df)
         .mark_bar(cornerRadiusEnd=4)
         .encode(
-            y=alt.Y("Name:N", sort=y_sort, title="", axis=alt.Axis(labels=False, ticks=False)),
+            y=alt.Y("Name:N", sort=y_sort, title="", axis=alt.Axis(title=None, labelLimit=260, labelFontSize=12)),
             x=alt.X("Score:Q", title="Points"),
             color=alt.Color("Name:N", legend=None),
             tooltip=["Rank:Q", "Name:N", "Score:Q"]
@@ -1190,6 +1190,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
