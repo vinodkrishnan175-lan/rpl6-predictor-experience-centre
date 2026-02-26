@@ -957,53 +957,29 @@ with tabs[3]:
 
     import altair as alt
 
-    chart_df = view.copy()
-
-    # Ensure numeric types
-    chart_df["Score"] = pd.to_numeric(chart_df["Score"], errors="coerce").fillna(0)
-    chart_df["Rank"] = pd.to_numeric(chart_df["Rank"], errors="coerce").fillna(999).astype(int)
-
-    # Sort by Rank so the ORDER changes every drop correctly
-    y_sort = alt.SortField(field="Rank", order="ascending")
-
-    # Create a "right end" label (Name + Score + movement)
-    chart_df["right_label"] = (
-        chart_df["player_name"].astype(str)
-        + "  —  "
-        + chart_df["Score"].astype(int).astype(str)
-        + " pts  ("
-        + chart_df["Δ"].astype(str)
-        + ")"
-    )
-
-    # Give some extra space on the right for labels (so they don't get cut off)
-    x_max = float(chart_df["Score"].max()) if len(chart_df) else 1
-    x_domain_max = x_max * 1.35
+    chart_df = view.sort_values(["Score", "player_name"], ascending=[False, True]).copy()
 
     bars = (
         alt.Chart(chart_df)
-        .mark_bar(cornerRadiusEnd=4)
+        .mark_bar()
         .encode(
-            y=alt.Y("player_name:N", sort=y_sort, title=""),
-            x=alt.X("Score:Q", title="Points", scale=alt.Scale(domain=[0, x_domain_max])),
-            # Unique colour per player (consistent for that name)
-            color=alt.Color("player_name:N", legend=None),
+            y=alt.Y("player_name:N", sort="-x", title=""),
+            x=alt.X("Score:Q", title="Points"),
             tooltip=["Rank:Q", "player_name:N", "Score:Q", "Δ:O"],
         )
     )
 
-    # Put the NAME on the far right end of each bar (plus score + Δ)
-    right_labels = (
+    labels = (
         alt.Chart(chart_df)
-        .mark_text(align="left", dx=8, baseline="middle", fontSize=13)
+        .mark_text(align="left", dx=6)
         .encode(
-            y=alt.Y("player_name:N", sort=y_sort),
+            y=alt.Y("player_name:N", sort="-x"),
             x=alt.X("Score:Q"),
-            text=alt.Text("right_label:N"),
+            text=alt.Text("Δ:O"),
         )
     )
 
-    st.altair_chart(bars + right_labels, use_container_width=True)
+    st.altair_chart(bars + labels, use_container_width=True)
 
     # -----------------------------
     # Table view
@@ -1214,6 +1190,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
