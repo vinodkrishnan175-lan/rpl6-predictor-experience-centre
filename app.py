@@ -437,35 +437,35 @@ with tabs[0]:
 
     with r1b:
         st.markdown(_card_html(
-            "🧊 Min responses",
+            "🧊 Drop with the least responses",
             str(min_resp_row["question"]),
             f"{int(min_resp_row['attempted'])} responses"
         ), unsafe_allow_html=True)
 
     with r1c:
         st.markdown(_card_html(
-            "🔥 Max PP success",
+            "🔥 Drops with most number of successful Power Plays",
             str(max_pp_hit_row["question"]),
             f"{int(max_pp_hit_row['pp_correct'])} PP hits"
         ), unsafe_allow_html=True)
 
     with r2a:
         st.markdown(_card_html(
-            "💥 Most PP fails",
+            "💥 Drop with the most number of Power Play fails",
             str(max_pp_fail_row["question"]),
             f"{int(max_pp_fail_row['pp_fail'])} PP fails"
         ), unsafe_allow_html=True)
 
     with r2b:
         st.markdown(_card_html(
-            "🥵 Toughest drop",
+            "🥵 The toughest drop",
             str(toughest_row["question"]),
             f"{int(toughest_row['correct'])}/{int(toughest_row['attempted'])} correct • {safe_pct(float(toughest_row['accuracy_pct']))}"
         ), unsafe_allow_html=True)
 
     with r2c:
         st.markdown(_card_html(
-            "🎯 Easiest drop",
+            "🎯 The easiest drop",
             str(easiest_row["question"]),
             f"{int(easiest_row['correct'])}/{int(easiest_row['attempted'])} correct • {safe_pct(float(easiest_row['accuracy_pct']))}"
         ), unsafe_allow_html=True)
@@ -1216,6 +1216,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
