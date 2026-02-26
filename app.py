@@ -524,7 +524,125 @@ with tabs[0]:
 
     # Full leaderboard table
     st.dataframe(final_lb, use_container_width=True, hide_index=True)
- 
+
+    # -----------------------------
+    # Deep-dive sections in a collapsible expander
+    # -----------------------------
+    with st.expander("📦 Deep-dive: Hardest / Easiest / Unsolved Drops", expanded=False):
+
+        st.divider()
+
+        # -------------------------
+        # Hardest drops
+        # -------------------------
+        st.subheader("Hardest Drops (Questions only)")
+        st.caption("Hardest = lowest % correct among attempted responses.")
+
+        hd_view = hardest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+        hd_view["accuracy_pct"] = hd_view["accuracy_pct"].map(safe_pct)
+
+        st.dataframe(
+            hd_view.rename(columns={
+                "drop": "Drop",
+                "question": "Question",
+                "accuracy_pct": "% Correct",
+                "attempted": "Attempted",
+                "correct": "Correct"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("#### Players who got the hardest drops right (PP used called out)")
+        for _, r in hardest_df.iterrows():
+            d = int(r["drop"])
+            subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+            names = sorted(subset["player_name"].unique().tolist())
+
+            pp_used_names = sorted(
+                merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+                .unique().tolist()
+            )
+
+            st.markdown('<div class="qa-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+                unsafe_allow_html=True
+            )
+
+            if pp_used_names:
+                st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+            else:
+                st.write("🧊 No players used Power Play for this question.")
+
+            st.write(", ".join(names) if names else "No one got this right.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+
+        # -------------------------
+        # Easiest drops
+        # -------------------------
+        st.subheader("Easiest Drops (Questions only)")
+        st.caption("Easiest = highest % correct among attempted responses.")
+
+        ez_view = easiest_df[["drop", "question", "accuracy_pct", "attempted", "correct"]].copy()
+        ez_view["accuracy_pct"] = ez_view["accuracy_pct"].map(safe_pct)
+
+        st.dataframe(
+            ez_view.rename(columns={
+                "drop": "Drop",
+                "question": "Question",
+                "accuracy_pct": "% Correct",
+                "attempted": "Attempted",
+                "correct": "Correct"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("#### Players who got the easiest drops right (PP used called out)")
+        for _, r in easiest_df.iterrows():
+            d = int(r["drop"])
+            subset = merged[(merged["drop"] == d) & (merged["is_correct"] == 1)]
+            names = sorted(subset["player_name"].unique().tolist())
+
+            pp_used_names = sorted(
+                merged[(merged["drop"] == d) & (merged["power_play"] == 1)]["player_name"]
+                .unique().tolist()
+            )
+
+            st.markdown('<div class="qa-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="qa-title">Drop {d} — {r["question"]}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="qa-sub">Correct by {len(names)} players ({safe_pct(float(r["accuracy_pct"]))})</div>',
+                unsafe_allow_html=True
+            )
+
+            if pp_used_names:
+                st.write(f"🔥 PP used by: {', '.join(pp_used_names)}")
+            else:
+                st.write("🧊 No players used Power Play for this question.")
+
+            st.write(", ".join(names) if names else "No responses.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+
+        # -------------------------
+        # Unsolved drops
+        # -------------------------
+        st.subheader("Unsolved Drops (0 correct)")
+        if len(unsolved_df) == 0:
+            st.write("None — every question had at least one correct answer.")
+        else:
+            for _, r in unsolved_df.iterrows():
+                st.markdown(f"**Drop {int(r['drop'])}** — {r['question']}")
+                st.caption(f"Attempted: {int(r['attempted'])} • Correct: 0")
+                st.write(f"✅ Correct option: **{r['correct_option']}**")
+                st.write("")
+  
     st.divider()
 
     # -------------------------
@@ -1190,6 +1308,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
