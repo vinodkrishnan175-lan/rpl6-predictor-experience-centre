@@ -459,7 +459,7 @@ with tabs[0]:
     st.divider()
 
     # -----------------------------
-    # Season highlight tiles (6 tiles)
+    # Season highlight tiles (6 tiles)  -- REPLACEMENT (uses ucard)
     # -----------------------------
     ds_all = drop_stats_df.copy()
     ds_all["pp_fail"] = (ds_all["pp_used"] - ds_all["pp_correct"]).astype(int)
@@ -472,84 +472,74 @@ with tabs[0]:
     toughest_row = ds_valid.sort_values(["accuracy_pct", "attempted"], ascending=[True, False]).iloc[0]
     easiest_row = ds_valid.sort_values(["accuracy_pct", "attempted"], ascending=[False, False]).iloc[0]
 
-    def _card_html(title, big_text, badge_text):
-        return f"""
-        <div style="
-          border-radius: 18px;
-          padding: 14px 16px;
-          border: 1px solid rgba(255,255,255,0.10);
-          background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-          box-shadow: 0 12px 26px rgba(0,0,0,0.38);
-          min-height: 150px;
-        ">
-          <div style="opacity:0.90;font-weight:800;font-size:14px;margin-bottom:8px;">{title}</div>
-          <div style="
-            font-weight:950;
-            font-size:20px;
-            line-height:1.2;
-            margin-bottom:10px;
-            display:-webkit-box;
-            -webkit-line-clamp:3;
-            -webkit-box-orient:vertical;
-            overflow:hidden;
-            min-height:72px;
-          ">{big_text}</div>
-          <div style="
-            display:inline-block;
-            padding:6px 10px;
-            border-radius:999px;
-            background: rgba(0,200,120,0.16);
-            border: 1px solid rgba(0,200,120,0.28);
-            font-weight:900;
-            color: rgba(140,255,200,0.98);
-          ">{badge_text}</div>
-        </div>
-        """
-
     r1a, r1b, r1c = st.columns(3)
     r2a, r2b, r2c = st.columns(3)
 
     with r1a:
-        st.markdown(_card_html(
-            "✍️ Drop with the most responses",
-            str(max_resp_row["question"]),
-            f"{int(max_resp_row['attempted'])} responses"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "✍️ Drop with the most responses",
+                "✍️",
+                str(max_resp_row["question"]),
+                f"{int(max_resp_row['attempted'])} responses",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with r1b:
-        st.markdown(_card_html(
-            "🧊 Drop with the least responses",
-            str(min_resp_row["question"]),
-            f"{int(min_resp_row['attempted'])} responses"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "🧊 Drop with the least responses",
+                "🧊",
+                str(min_resp_row["question"]),
+                f"{int(min_resp_row['attempted'])} responses",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with r1c:
-        st.markdown(_card_html(
-            "🔥 Drop with most successful Power Plays",
-            str(max_pp_hit_row["question"]),
-            f"{int(max_pp_hit_row['pp_correct'])} PP hits"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "🔥 Drop with most successful Power Plays",
+                "🔥",
+                str(max_pp_hit_row["question"]),
+                f"{int(max_pp_hit_row['pp_correct'])} PP hits",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with r2a:
-        st.markdown(_card_html(
-            "💥 Drop with the most Power Play fails",
-            str(max_pp_fail_row["question"]),
-            f"{int(max_pp_fail_row['pp_fail'])} PP fails"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "💥 Drop with the most Power Play fails",
+                "💥",
+                str(max_pp_fail_row["question"]),
+                f"{int(max_pp_fail_row['pp_fail'])} PP fails",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with r2b:
-        st.markdown(_card_html(
-            "🥵 The toughest drop",
-            str(toughest_row["question"]),
-            f"{int(toughest_row['correct'])}/{int(toughest_row['attempted'])} correct • {safe_pct(float(toughest_row['accuracy_pct']))}"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "🥵 The toughest drop",
+                "🥵",
+                str(toughest_row["question"]),
+                f"{int(toughest_row['correct'])}/{int(toughest_row['attempted'])} correct • {safe_pct(float(toughest_row['accuracy_pct']))}",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with r2c:
-        st.markdown(_card_html(
-            "🎯 The easiest drop",
-            str(easiest_row["question"]),
-            f"{int(easiest_row['correct'])}/{int(easiest_row['attempted'])} correct • {safe_pct(float(easiest_row['accuracy_pct']))}"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            ucard(
+                "🎯 The easiest drop",
+                "🎯",
+                str(easiest_row["question"]),
+                f"{int(easiest_row['correct'])}/{int(easiest_row['attempted'])} correct • {safe_pct(float(easiest_row['accuracy_pct']))}",
+            ),
+            unsafe_allow_html=True,
+        )
 
     st.divider()
     # -----------------------------
@@ -1375,6 +1365,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
