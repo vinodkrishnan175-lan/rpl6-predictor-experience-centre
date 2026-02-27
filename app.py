@@ -131,7 +131,7 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
 
 .u-big{
   font-weight:500;
-  font-size:24px;
+  font-size:20px;
   line-height:1.2;
   margin-bottom:10px;
   display:-webkit-box;
@@ -1365,6 +1365,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
