@@ -673,17 +673,32 @@ with tabs[0]:
         background: radial-gradient(circle at 18% 0%, rgba(205,127,50,0.20), rgba(0,0,0,0) 55%),
                     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
       }
-      .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
-      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0 2px 0; }
+      .pod-title{ font-weight: 900; font-size: 17px; margin-bottom: 12px; letter-spacing: 0.08em; }
+      .pod-line{ display:flex; justify-content:space-between; font-weight: 900; font-size: 19px; margin: 8px 0 4px 0; }
       .pod-pts{ font-weight: 950; }
       .pod-meta{
-        opacity: 0.90;
-        font-size: 12.5px;
+        opacity: 0.85;
+        font-size: 13.5px;
         margin: 0 0 10px 0;
       }
       .pod-meta span{ opacity:0.95; }
       @media (max-width: 900px){
         .podium-row{ grid-template-columns: 1fr; }
+      }
+      .pod{
+        transition: all 0.25s ease;
+      }
+
+      .pod:hover{
+        transform: translateY(-4px);
+        box-shadow: 0 18px 38px rgba(0,0,0,0.55);
+      }
+
+      .pod.gold{
+        box-shadow: 
+          0 0 0 1px rgba(245,197,66,0.25),
+          0 0 30px rgba(245,197,66,0.25),
+          0 20px 40px rgba(0,0,0,0.55);
       }
     </style>
     """, unsafe_allow_html=True)
@@ -735,7 +750,8 @@ with tabs[0]:
             acc_pct = float(acc_map.get(name, 0.0))
 
             html += (
-                f'<div class="pod-line">'
+                size_class = "style='font-size:22px;'" if df is champ_df else ""
+                f'<div class="pod-line" {size_class}>'
                 f'  <span>{name}</span>'
                 f'  <span class="pod-pts">{score} pts</span>'
                 f'</div>'
@@ -1426,6 +1442,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
