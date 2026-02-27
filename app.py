@@ -84,6 +84,74 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
   margin-bottom: 8px;
 }
 
+/* === Unified Tile System (everything except podium) === */
+.u-grid{
+  display:grid;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 6px 0 6px 0;
+}
+@media (max-width: 1200px){
+  .u-grid{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+}
+@media (max-width: 700px){
+  .u-grid{ grid-template-columns: 1fr; }
+}
+
+.u-card{
+  border-radius: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  box-shadow: 0 12px 26px rgba(0,0,0,0.38);
+  min-height: 120px;
+}
+
+.u-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  opacity:0.92;
+  font-weight:800;
+  font-size:14px;
+  margin-bottom:10px;
+}
+
+.u-ico{
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(245,197,66,0.10);
+  border: 1px solid rgba(245,197,66,0.22);
+  font-size:14px;
+}
+
+.u-big{
+  font-weight:950;
+  font-size:22px;
+  line-height:1.2;
+  margin-bottom:10px;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height: 56px;
+}
+
+.u-badge{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(0,200,120,0.16);
+  border: 1px solid rgba(0,200,120,0.28);
+  font-weight:900;
+  color: rgba(140,255,200,0.98);
+  font-size: 13px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -346,7 +414,16 @@ tabs = st.tabs(["🏁 Overview", "🎯 Drop Explorer", "👤 Player Explorer", "
 # =============================
 with tabs[0]:
     st.header("🏁 Season Overview")
-
+  
+    def ucard(title: str, icon: str, big: str, badge: str = "") -> str:
+    badge_html = f'<div class="u-badge">{badge}</div>' if badge else ""
+    return f"""
+      <div class="u-card">
+        <div class="u-title"><span class="u-ico">{icon}</span>{title}</div>
+        <div class="u-big">{big}</div>
+        {badge_html}
+      </div>
+    """  
     import altair as alt
 
     # -----------------------------
@@ -481,37 +558,50 @@ with tabs[0]:
 
     st.divider()
 
-    
     # -----------------------------
-    # PP / Attendance tiles row
+    # PP / Attendance tiles row (UNIFORM CARD STYLE)
     # -----------------------------
     a, b, c = st.columns(3)
-
+      
     with a:
-        st.metric(
-            "Number of players who got both Power Plays correct",
-            len(both_pp_correct_names)
+        st.markdown(
+            _card_html(
+                "Number of players who got BOTH PP correct",
+                "✅ " + str(len(both_pp_correct_names)),
+                "👥 players"
+            ),
+            unsafe_allow_html=True
         )
         with st.popover("View names"):
             st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
 
     with b:
-        st.metric(
-            "Number of players who got both Power Plays wrong",
-            len(both_pp_wrong_names)
+        st.markdown(
+            _card_html(
+                "Number of players who got BOTH PP wrong",
+                "❌ " + str(len(both_pp_wrong_names)),
+                "👥 players"
+            ),
+            unsafe_allow_html=True
         )
         with st.popover("View names"):
             st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     with c:
-        st.metric(
-            "Number of players who had 100% attendance",
-            len(full_attendance_list)
+        st.markdown(
+            _card_html(
+                "Number of players who had 100% attendance",
+                "🏁 " + str(len(full_attendance_list)),
+                "👥 players"
+            ),
+            unsafe_allow_html=True
         )
         with st.popover("View names"):
             st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
 
     st.divider()
+    
+    
 
     # -----------------------------
     # Podium (Champion / Runner-up / Third place) — enriched
@@ -1305,6 +1395,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
