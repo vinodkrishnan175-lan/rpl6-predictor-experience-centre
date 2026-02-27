@@ -131,7 +131,7 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
 
 .u-big{
   font-weight:500;
-  font-size:20px;
+  font-size:18px;
   line-height:1.2;
   margin-bottom:10px;
   display:-webkit-box;
@@ -142,7 +142,7 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
 }
 
 .u-big-number{
-  font-weight:900;
+  font-weight:750;
   font-size:36px;   /* Bigger number */
   line-height:1.1;
   margin-bottom:10px;
@@ -1397,6 +1397,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
