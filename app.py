@@ -65,9 +65,7 @@ if logo_path.exists():
     </div>
     """, unsafe_allow_html=True)
   
-/* Broadcast vibe: bold, clean, high-contrast */
-.block-container { padding-top: 4.2rem; padding-bottom: 2rem; }
-html, body, [class*="css"]  { -webkit-font-smoothing: antialiased; }
+
 
 /* Headings */
 h1, h2, h3 { letter-spacing: -0.02em; }
@@ -1477,6 +1475,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
