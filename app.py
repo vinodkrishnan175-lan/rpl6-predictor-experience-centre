@@ -29,7 +29,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 # --- end hero ---
 
-# --- Fixed top-right RPL logo ---
+# --- Fixed top-right RPL logo (clean sticker style) ---
+import base64
+from pathlib import Path
+
 logo_path = Path("assets/rpl6_logo.png")
 
 if logo_path.exists():
@@ -40,18 +43,20 @@ if logo_path.exists():
     <style>
       .fixed-logo {{
         position: fixed;
-        top: 18px;
-        right: 24px;
+        top: 22px;
+        right: 28px;
         z-index: 999999;
-        background: rgba(10,15,35,0.85);
-        padding: 8px 10px;
-        border-radius: 12px;
-        border: 1px solid rgba(245,197,66,0.25);
-        box-shadow: 0 0 18px rgba(245,197,66,0.25);
-        backdrop-filter: blur(6px);
       }}
+
       .fixed-logo img {{
-        height: 36px;
+        height: 70px;   /* ⬅ Increase or decrease here */
+        opacity: 0.95;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }}
+
+      .fixed-logo img:hover {{
+        transform: scale(1.08);
+        opacity: 1;
       }}
     </style>
 
@@ -59,8 +64,7 @@ if logo_path.exists():
         <img src="data:image/png;base64,{logo_b64}">
     </div>
     """, unsafe_allow_html=True)
-st.markdown("""
-<style>
+  
 /* Broadcast vibe: bold, clean, high-contrast */
 .block-container { padding-top: 4.2rem; padding-bottom: 2rem; }
 html, body, [class*="css"]  { -webkit-font-smoothing: antialiased; }
@@ -1473,6 +1477,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
