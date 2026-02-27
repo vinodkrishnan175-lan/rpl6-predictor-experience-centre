@@ -416,14 +416,14 @@ with tabs[0]:
     st.header("🏁 Season Overview")
   
     def ucard(title: str, icon: str, big: str, badge: str = "") -> str:
-    badge_html = f'<div class="u-badge">{badge}</div>' if badge else ""
-    return f"""
-      <div class="u-card">
-        <div class="u-title"><span class="u-ico">{icon}</span>{title}</div>
-        <div class="u-big">{big}</div>
-        {badge_html}
-      </div>
-    """  
+        badge_html = f'<div class="u-badge">{badge}</div>' if badge else ""
+        return f"""
+          <div class="u-card">
+            <div class="u-title"><span class="u-ico">{icon}</span>{title}</div>
+            <div class="u-big">{big}</div>
+            {badge_html}
+          </div>
+        """  
     import altair as alt
 
     # -----------------------------
@@ -1395,6 +1395,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
