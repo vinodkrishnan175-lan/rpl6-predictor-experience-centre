@@ -489,7 +489,7 @@ with tabs[0]:
     with r1b:
         st.markdown(
             ucard(
-                "🧊 Drop with the least responses",
+                "Drop with the least responses",
                 "🧊",
                 str(min_resp_row["question"]),
                 f"{int(min_resp_row['attempted'])} responses",
@@ -1365,6 +1365,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
