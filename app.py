@@ -968,13 +968,13 @@ with tabs[1]:
     cA, cB, cC = st.columns(3)
     with cA:
         st.markdown(f"### ✅ Correct ({len(correct_names)})")
-        st.write("\n".join(sorted(correct_names)) if correct_names else "—")
+        st.write(", ".join(sorted(correct_names)) if correct_names else "—")
     with cB:
         st.markdown(f"### ❌ Wrong ({len(wrong_names)})")
-        st.write("\n".join(sorted(wrong_names)) if wrong_names else "—")
+        st.write(", ".join(sorted(wrong_names)) if wrong_names else "—")
     with cC:
         st.markdown(f"### ⏸️ No response ({len(noresp_names)})")
-        st.write("\n".join(sorted(noresp_names)) if noresp_names else "—")
+        st.write(", ".join(sorted(noresp_names)) if noresp_names else "—")
 
 # =============================
 # Player Explorer
@@ -1441,6 +1441,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
