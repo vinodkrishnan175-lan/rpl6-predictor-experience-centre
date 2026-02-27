@@ -485,8 +485,8 @@ with tabs[0]:
 
     st.divider()
 
-# -----------------------------
-    # Podium (Champion / Runner-up / Third place)
+    # -----------------------------
+    # Podium (Champion / Runner-up / Third place) — enriched
     # -----------------------------
     st.markdown("### 🏆 Podium")
 
@@ -504,7 +504,7 @@ with tabs[0]:
         border: 1px solid rgba(255,255,255,0.10);
         box-shadow: 0 12px 26px rgba(0,0,0,0.40);
         background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-        min-height: 108px;
+        min-height: 128px;
       }
       .pod.gold{
         border-color: rgba(245,197,66,0.45);
@@ -525,14 +525,46 @@ with tabs[0]:
                     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
       }
       .pod-title{ font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.06em; }
-      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0; }
+      .pod-line{ display:flex; justify-content:space-between; font-weight: 850; font-size: 16px; margin: 6px 0 2px 0; }
       .pod-pts{ font-weight: 950; }
+      .pod-meta{
+        opacity: 0.90;
+        font-size: 12.5px;
+        margin: 0 0 10px 0;
+      }
+      .pod-meta span{ opacity:0.95; }
       @media (max-width: 900px){
         .podium-row{ grid-template-columns: 1fr; }
       }
     </style>
     """, unsafe_allow_html=True)
 
+    # --- Build per-player metrics for podium ---
+    # Attendance %
+    att_map = (
+        attendance_df.set_index("player_name")["attendance_pct"]
+        .fillna(0.0)
+        .to_dict()
+    )
+
+    # PP correct (from final_lb_raw)
+    pp_map = (
+        final_lb_raw.set_index("player_name")["pp_correct"]
+        .fillna(0)
+        .astype(int)
+        .to_dict()
+    )
+
+    # Accuracy % (exclude scrapped drop 12)
+    acc_base = merged[merged["drop"] != 12].copy()
+    acc_df = (
+        acc_base.groupby("player_name", as_index=False)
+        .agg(att=("attempted", "sum"), cor=("is_correct", "sum"))
+    )
+    acc_df["acc_pct"] = np.where(acc_df["att"] > 0, (acc_df["cor"] / acc_df["att"]) * 100.0, 0.0)
+    acc_map = acc_df.set_index("player_name")["acc_pct"].to_dict()
+
+    # Podium groups from final leaderboard table
     podium_df = final_lb.copy()
     podium_df["Score"] = pd.to_numeric(podium_df["Score"], errors="coerce").fillna(0)
 
@@ -543,10 +575,28 @@ with tabs[0]:
     def render_lines(df):
         if df.empty:
             return '<div style="opacity:0.7">—</div>'
-        return "".join([
-            f'<div class="pod-line"><span>{r["Name"]}</span><span class="pod-pts">{int(r["Score"])} pts</span></div>'
-            for _, r in df.iterrows()
-        ])
+
+        html = ""
+        for _, r in df.iterrows():
+            name = str(r["Name"])
+            score = int(r["Score"])
+
+            att_pct = att_map.get(name, 0.0) * 100.0
+            pp_cor = int(pp_map.get(name, 0))
+            acc_pct = float(acc_map.get(name, 0.0))
+
+            html += (
+                f'<div class="pod-line">'
+                f'  <span>{name}</span>'
+                f'  <span class="pod-pts">{score} pts</span>'
+                f'</div>'
+                f'<div class="pod-meta">'
+                f'  <span>Attendance: <b>{att_pct:.0f}%</b></span>'
+                f'  &nbsp;•&nbsp; <span>PP correct: <b>{pp_cor}</b></span>'
+                f'  &nbsp;•&nbsp; <span>Accuracy: <b>{acc_pct:.1f}%</b></span>'
+                f'</div>'
+            )
+        return html
 
     st.markdown(f"""
       <div class="podium-row">
@@ -1227,6 +1277,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
