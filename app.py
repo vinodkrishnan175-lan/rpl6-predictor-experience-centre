@@ -790,36 +790,36 @@ with tabs[0]:
     third_df  = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
 
     def render_lines(df):
-    if df.empty:
-        return '<div style="opacity:0.7">—</div>'
-
-    html = ""
-    for _, r in df.iterrows():
-        name = str(r["Name"])
-        score = int(r["Score"])
-
-        att_pct = att_map.get(name, 0.0) * 100.0
-        pp_cor = int(pp_map.get(name, 0))
-        acc_pct = float(acc_map.get(name, 0.0))
-
-        img_html = get_player_image_html(name)
-
-        html += (
-            f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
-            f'  <div style="display:flex;align-items:center;">'
-            f'    {img_html}'
-            f'    <span style="font-weight:900;font-size:18px;">{name}</span>'
-            f'  </div>'
-            f'  <span class="pod-pts">{score} pts</span>'
-            f'</div>'
-            f'<div class="pod-meta">'
-            f'  Attendance: <b>{att_pct:.0f}%</b> • '
-            f'  PP correct: <b>{pp_cor}</b> • '
-            f'  Accuracy: <b>{acc_pct:.1f}%</b>'
-            f'</div>'
-        )
-
-    return html
+        if df.empty:
+            return '<div style="opacity:0.7">—</div>'
+    
+        html = ""
+        for _, r in df.iterrows():
+            name = str(r["Name"])
+            score = int(r["Score"])
+    
+            att_pct = att_map.get(name, 0.0) * 100.0
+            pp_cor = int(pp_map.get(name, 0))
+            acc_pct = float(acc_map.get(name, 0.0))
+    
+            img_html = get_player_image_html(name)
+    
+            html += (
+                f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+                f'  <div style="display:flex;align-items:center;">'
+                f'    {img_html}'
+                f'    <span style="font-weight:900;font-size:18px;">{name}</span>'
+                f'  </div>'
+                f'  <span class="pod-pts">{score} pts</span>'
+                f'</div>'
+                f'<div class="pod-meta">'
+                f'  Attendance: <b>{att_pct:.0f}%</b> • '
+                f'  PP correct: <b>{pp_cor}</b> • '
+                f'  Accuracy: <b>{acc_pct:.1f}%</b>'
+                f'</div>'
+            )
+    
+        return html
 
     st.markdown(f"""
       <div class="podium-row">
@@ -1500,6 +1500,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
