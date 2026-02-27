@@ -422,6 +422,20 @@ def top_full_leaderboard_view(lb: pd.DataFrame, attendance: pd.DataFrame) -> pd.
     out["Attendance%"] = out["Attendance%"].map(safe_pct)
     return out
 
+def get_player_image_html(player_name: str) -> str:
+    img_path = Path(f"assets/{player_name}.png")
+    if img_path.exists():
+        with open(img_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+        return f'''
+            <img src="data:image/png;base64,{img_b64}"
+                 style="width:48px;height:48px;
+                        border-radius:50%;
+                        object-fit:cover;
+                        border:2px solid rgba(255,255,255,0.15);
+                        margin-right:10px;">
+        '''
+    return ""
 
 # -----------------------------
 # Load everything
@@ -776,30 +790,36 @@ with tabs[0]:
     third_df  = podium_df[podium_df["Rank"] == 3][["Name", "Score"]]
 
     def render_lines(df):
-        if df.empty:
-            return '<div style="opacity:0.7">—</div>'
+    if df.empty:
+        return '<div style="opacity:0.7">—</div>'
 
-        html = ""
-        for _, r in df.iterrows():
-            name = str(r["Name"])
-            score = int(r["Score"])
+    html = ""
+    for _, r in df.iterrows():
+        name = str(r["Name"])
+        score = int(r["Score"])
 
-            att_pct = att_map.get(name, 0.0) * 100.0
-            pp_cor = int(pp_map.get(name, 0))
-            acc_pct = float(acc_map.get(name, 0.0))
+        att_pct = att_map.get(name, 0.0) * 100.0
+        pp_cor = int(pp_map.get(name, 0))
+        acc_pct = float(acc_map.get(name, 0.0))
 
-            html += (
-                f'<div class="pod-line">'
-                f'  <span>{name}</span>'
-                f'  <span class="pod-pts">{score} pts</span>'
-                f'</div>'
-                f'<div class="pod-meta">'
-                f'  <span>Attendance: <b>{att_pct:.0f}%</b></span>'
-                f'  &nbsp;•&nbsp; <span>PP correct: <b>{pp_cor}</b></span>'
-                f'  &nbsp;•&nbsp; <span>Accuracy: <b>{acc_pct:.1f}%</b></span>'
-                f'</div>'
-            )
-        return html
+        img_html = get_player_image_html(name)
+
+        html += (
+            f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+            f'  <div style="display:flex;align-items:center;">'
+            f'    {img_html}'
+            f'    <span style="font-weight:900;font-size:18px;">{name}</span>'
+            f'  </div>'
+            f'  <span class="pod-pts">{score} pts</span>'
+            f'</div>'
+            f'<div class="pod-meta">'
+            f'  Attendance: <b>{att_pct:.0f}%</b> • '
+            f'  PP correct: <b>{pp_cor}</b> • '
+            f'  Accuracy: <b>{acc_pct:.1f}%</b>'
+            f'</div>'
+        )
+
+    return html
 
     st.markdown(f"""
       <div class="podium-row">
@@ -1480,6 +1500,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
