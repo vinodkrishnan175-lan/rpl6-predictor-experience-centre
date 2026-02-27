@@ -750,8 +750,7 @@ with tabs[0]:
             acc_pct = float(acc_map.get(name, 0.0))
 
             html += (
-                size_class = "style='font-size:22px;'" if df is champ_df else ""
-                f'<div class="pod-line" {size_class}>'
+                f'<div class="pod-line">'
                 f'  <span>{name}</span>'
                 f'  <span class="pod-pts">{score} pts</span>'
                 f'</div>'
@@ -1442,6 +1441,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
