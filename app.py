@@ -628,7 +628,16 @@ with tabs[0]:
     # -----------------------------
     # Podium (Champion / Runner-up / Third place) — enriched
     # -----------------------------
-    st.markdown("### 🏆 Podium")
+    st.markdown("""
+    <div style="
+        font-size:26px;
+        font-weight:900;
+        letter-spacing:0.04em;
+        margin-bottom:10px;
+    ">
+    🏆 Podium
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("""
     <style>
@@ -1417,6 +1426,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
