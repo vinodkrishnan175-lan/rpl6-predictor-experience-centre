@@ -575,36 +575,56 @@ with tabs[0]:
 
     st.divider()
     # -----------------------------
-    # PP / Attendance tiles row (UNIFORM STYLE) ✅ uses ucard()
+    # PP / Attendance tiles row (BIG NUMBERS LIKE TOP ROW)
     # -----------------------------
     a, b, c = st.columns(3)
 
     with a:
-        st.markdown(
-            ucard("Number of players who got BOTH PP correct", "✅", str(len(both_pp_correct_names)), "players"),
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title">
+                <span class="u-ico">✅</span>
+                Number of players who got BOTH PP correct
+            </div>
+            <div class="u-big-number">{len(both_pp_correct_names)}</div>
+            <div class="u-badge">players</div>
+        </div>
+        """, unsafe_allow_html=True)
+
         with st.popover("View names"):
             st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
 
     with b:
-        st.markdown(
-            ucard("Number of players who got BOTH PP wrong", "❌", str(len(both_pp_wrong_names)), "players"),
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title">
+                <span class="u-ico">❌</span>
+                Number of players who got BOTH PP wrong
+            </div>
+            <div class="u-big-number">{len(both_pp_wrong_names)}</div>
+            <div class="u-badge">players</div>
+        </div>
+        """, unsafe_allow_html=True)
+
         with st.popover("View names"):
             st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
     with c:
-        st.markdown(
-            ucard("Number of players who had 100% attendance", "🏁", str(len(full_attendance_list)), "players"),
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title">
+                <span class="u-ico">🏁</span>
+                Number of players who had 100% attendance
+            </div>
+            <div class="u-big-number">{len(full_attendance_list)}</div>
+            <div class="u-badge">players</div>
+        </div>
+        """, unsafe_allow_html=True)
+
         with st.popover("View names"):
             st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
 
-    st.divider()  
-
+    st.divider()
     # -----------------------------
     # Podium (Champion / Runner-up / Third place) — enriched
     # -----------------------------
@@ -1397,6 +1417,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
