@@ -478,7 +478,7 @@ with tabs[0]:
     with r1a:
         st.markdown(
             ucard(
-                "✍️ Drop with the most responses",
+                "Drop with the most responses",
                 "✍️",
                 str(max_resp_row["question"]),
                 f"{int(max_resp_row['attempted'])} responses",
@@ -500,7 +500,7 @@ with tabs[0]:
     with r1c:
         st.markdown(
             ucard(
-                "🔥 Drop with most successful Power Plays",
+                "Drop with most successful Power Plays",
                 "🔥",
                 str(max_pp_hit_row["question"]),
                 f"{int(max_pp_hit_row['pp_correct'])} PP hits",
@@ -511,7 +511,7 @@ with tabs[0]:
     with r2a:
         st.markdown(
             ucard(
-                "💥 Drop with the most Power Play fails",
+                "Drop with the most Power Play fails",
                 "💥",
                 str(max_pp_fail_row["question"]),
                 f"{int(max_pp_fail_row['pp_fail'])} PP fails",
@@ -522,7 +522,7 @@ with tabs[0]:
     with r2b:
         st.markdown(
             ucard(
-                "🥵 The toughest drop",
+                "The toughest drop",
                 "🥵",
                 str(toughest_row["question"]),
                 f"{int(toughest_row['correct'])}/{int(toughest_row['attempted'])} correct • {safe_pct(float(toughest_row['accuracy_pct']))}",
@@ -533,7 +533,7 @@ with tabs[0]:
     with r2c:
         st.markdown(
             ucard(
-                "🎯 The easiest drop",
+                "The easiest drop",
                 "🎯",
                 str(easiest_row["question"]),
                 f"{int(easiest_row['correct'])}/{int(easiest_row['attempted'])} correct • {safe_pct(float(easiest_row['accuracy_pct']))}",
@@ -1365,6 +1365,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
