@@ -141,6 +141,13 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
   min-height: 56px;
 }
 
+.u-big-number{
+  font-weight:900;
+  font-size:36px;   /* Bigger number */
+  line-height:1.1;
+  margin-bottom:10px;
+}
+
 .u-badge{
   display:inline-block;
   padding:6px 10px;
@@ -442,19 +449,44 @@ with tabs[0]:
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
-        st.markdown(ucard("Participants", "👥", str(total_participants)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title"><span class="u-ico">👥</span>Participants</div>
+            <div class="u-big-number">{total_participants}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with c2:
-        st.markdown(ucard("Active players", "🔥", str(active_count)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title"><span class="u-ico">🔥</span>Active players</div>
+            <div class="u-big-number">{active_count}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with c3:
-        st.markdown(ucard("Total predictions", "📝", str(total_predictions)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title"><span class="u-ico">📝</span>Total predictions</div>
+            <div class="u-big-number">{total_predictions}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with c4:
-        st.markdown(ucard("Total Power Plays used", "⚡", str(total_pp_used)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title"><span class="u-ico">⚡</span>Total Power Plays used</div>
+            <div class="u-big-number">{total_pp_used}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with c5:
-        st.markdown(ucard("Total drops", "📦", str(total_drops)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="u-card">
+            <div class="u-title"><span class="u-ico">📦</span>Total drops</div>
+            <div class="u-big-number">{total_drops}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -1365,6 +1397,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
