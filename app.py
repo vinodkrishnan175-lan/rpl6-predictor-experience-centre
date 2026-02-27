@@ -470,7 +470,7 @@ with tabs[0]:
 
     with a:
         st.metric(
-            "Number of players who got BOTH PP correct",
+            "Number of players who got both Power Plays correct",
             len(both_pp_correct_names)
         )
         with st.popover("View names"):
@@ -478,7 +478,7 @@ with tabs[0]:
 
     with b:
         st.metric(
-            "Number of players who got BOTH PP wrong",
+            "Number of players who got both Power Plays wrong",
             len(both_pp_wrong_names)
         )
         with st.popover("View names"):
@@ -1286,6 +1286,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
