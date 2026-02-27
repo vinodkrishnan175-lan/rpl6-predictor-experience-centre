@@ -437,59 +437,24 @@ with tabs[0]:
 
 
     # -----------------------------
-    # Season summary tiles (UNIFORM STYLE)
+    # Season summary tiles (UNIFORM STYLE)  ✅ uses ucard()
     # -----------------------------
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
-        st.markdown(
-            _card_html(
-                "👥 Participants",
-                str(total_participants),
-                ""
-            ),
-            unsafe_allow_html=True
-        )
-    
+        st.markdown(ucard("Participants", "👥", str(total_participants)), unsafe_allow_html=True)
+
     with c2:
-        st.markdown(
-            _card_html(
-                "🔥 Active players",
-                str(active_count),
-                ""
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown(ucard("Active players", "🔥", str(active_count)), unsafe_allow_html=True)
 
     with c3:
-        st.markdown(
-            _card_html(
-                "📝 Total predictions",
-                str(total_predictions),
-                ""
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown(ucard("Total predictions", "📝", str(total_predictions)), unsafe_allow_html=True)
 
     with c4:
-        st.markdown(
-            _card_html(
-                "⚡ Total Power Plays used",
-                str(total_pp_used),
-                ""
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown(ucard("Total Power Plays used", "⚡", str(total_pp_used)), unsafe_allow_html=True)
 
     with c5:
-        st.markdown(
-            _card_html(
-                "📦 Total drops",
-                str(total_drops),
-                ""
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown(ucard("Total drops", "📦", str(total_drops)), unsafe_allow_html=True)
 
     st.divider()
 
@@ -588,50 +553,36 @@ with tabs[0]:
 
     st.divider()
 
-    # -----------------------------
-    # PP / Attendance tiles row (UNIFORM CARD STYLE)
-    # -----------------------------
-    a, b, c = st.columns(3)
-      
-    with a:
-        st.markdown(
-            _card_html(
-                "Number of players who got BOTH PP correct",
-                "✅ " + str(len(both_pp_correct_names)),
-                "👥 players"
-            ),
-            unsafe_allow_html=True
-        )
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
+  # -----------------------------
+  # PP / Attendance tiles row (UNIFORM STYLE) ✅ uses ucard()
+  # -----------------------------
+  a, b, c = st.columns(3)
 
-    with b:
-        st.markdown(
-            _card_html(
-                "Number of players who got BOTH PP wrong",
-                "❌ " + str(len(both_pp_wrong_names)),
-                "👥 players"
-            ),
-            unsafe_allow_html=True
-        )
-        with st.popover("View names"):
-            st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
+  with a:
+      st.markdown(
+          ucard("Number of players who got BOTH PP correct", "✅", str(len(both_pp_correct_names)), "players"),
+          unsafe_allow_html=True
+      )
+      with st.popover("View names"):
+          st.write(", ".join(both_pp_correct_names) if both_pp_correct_names else "None")
 
-    with c:
-        st.markdown(
-            _card_html(
-                "Number of players who had 100% attendance",
-                "🏁 " + str(len(full_attendance_list)),
-                "👥 players"
-            ),
-            unsafe_allow_html=True
-        )
-        with st.popover("View names"):
-            st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
+  with b:
+      st.markdown(
+          ucard("Number of players who got BOTH PP wrong", "❌", str(len(both_pp_wrong_names)), "players"),
+          unsafe_allow_html=True
+      )
+      with st.popover("View names"):
+          st.write(", ".join(both_pp_wrong_names) if both_pp_wrong_names else "None")
 
-    st.divider()
-    
-    
+  with c:
+      st.markdown(
+          ucard("Number of players who had 100% attendance", "🏁", str(len(full_attendance_list)), "players"),
+          unsafe_allow_html=True
+      )
+      with st.popover("View names"):
+          st.write(", ".join(sorted(full_attendance_list)) if full_attendance_list else "None")
+
+  st.divider()  
 
     # -----------------------------
     # Podium (Champion / Runner-up / Third place) — enriched
@@ -1425,6 +1376,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
