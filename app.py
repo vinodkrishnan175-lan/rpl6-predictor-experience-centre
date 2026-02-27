@@ -113,7 +113,7 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
   gap:10px;
   opacity:0.92;
   font-weight:800;
-  font-size:14px;
+  font-size:18px;
   margin-bottom:10px;
 }
 
@@ -130,8 +130,8 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
 }
 
 .u-big{
-  font-weight:950;
-  font-size:22px;
+  font-weight:600;
+  font-size:40px;
   line-height:1.2;
   margin-bottom:10px;
   display:-webkit-box;
@@ -149,7 +149,7 @@ hr { margin: 1.2rem 0; opacity: 0.25; }
   border: 1px solid rgba(0,200,120,0.28);
   font-weight:900;
   color: rgba(140,255,200,0.98);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 </style>
@@ -1375,6 +1375,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
