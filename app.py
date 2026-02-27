@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import base64
 from pathlib import Path
 
 st.set_page_config(page_title="RPL 6 Predictor: Experience Centre", layout="wide")
@@ -24,9 +25,40 @@ st.markdown("""
     </div>
   </div>
 </div>
+
 """, unsafe_allow_html=True)
 # --- end hero ---
 
+# --- Fixed top-right RPL logo ---
+logo_path = Path("assets/rpl6_logo.png")
+
+if logo_path.exists():
+    with open(logo_path, "rb") as f:
+        logo_b64 = base64.b64encode(f.read()).decode()
+
+    st.markdown(f"""
+    <style>
+      .fixed-logo {{
+        position: fixed;
+        top: 18px;
+        right: 24px;
+        z-index: 999999;
+        background: rgba(10,15,35,0.85);
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(245,197,66,0.25);
+        box-shadow: 0 0 18px rgba(245,197,66,0.25);
+        backdrop-filter: blur(6px);
+      }}
+      .fixed-logo img {{
+        height: 36px;
+      }}
+    </style>
+
+    <div class="fixed-logo">
+        <img src="data:image/png;base64,{logo_b64}">
+    </div>
+    """, unsafe_allow_html=True)
 st.markdown("""
 <style>
 /* Broadcast vibe: bold, clean, high-contrast */
@@ -1441,6 +1473,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
