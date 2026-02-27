@@ -358,12 +358,31 @@ with tabs[0]:
     total_pp_used = int(merged["power_play"].sum())
     total_drops = int(drop_master["drop"].nunique())  # 38 (includes scrapped)
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Participants", total_participants)
-    c2.metric("Active players", active_count)
-    c3.metric("Total predictions", total_predictions)
-    c4.metric("Total Power Plays used", total_pp_used)
-    c5.metric("Total drops", total_drops)
+    # -----------------------------
+    # Season summary tiles (CUSTOM, uniform look)
+    # -----------------------------
+    st.markdown('<div class="info-grid">', unsafe_allow_html=True)
+
+    def info_card(title: str, icon: str, big: str, badge: str | None = None):
+        badge_html = f'<div class="info-badge">{badge}</div>' if badge else ""
+        return f"""
+          <div class="info-card">
+            <div class="info-title"><span class="info-ico">{icon}</span>{title}</div>
+            <div class="info-big">{big}</div>
+            {badge_html}
+          </div>
+        """
+
+    st.markdown(
+        info_card("Participants", "👥", f"{total_participants}", None) +
+        info_card("Active players", "🔥", f"{active_count}", None) +
+        info_card("Total predictions", "📝", f"{total_predictions}", None) +
+        info_card("Total Power Plays used", "⚡", f"{total_pp_used}", None) +
+        info_card("Total drops", "📦", f"{total_drops}", None),
+        unsafe_allow_html=True
+    )
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -1286,6 +1305,7 @@ with tabs[4]:
         st.markdown(tile_html, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
